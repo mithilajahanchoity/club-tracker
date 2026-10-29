@@ -53,7 +53,9 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
       (r) => r.id === id
     )?.last_sign_in_at ?? null;
 
-  const since = new Date(Date.now() - 13 * 86400000)
+  const DAY = 86400000;
+  const BD = 6 * 3600000; // Bangladesh time, same as the sync script
+  const since = new Date(Date.now() + BD - 13 * DAY)
     .toISOString()
     .slice(0, 10);
 
@@ -99,7 +101,7 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
     byDay.set(a.activity_date, d);
   }
   const days = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date(Date.now() - (13 - i) * 86400000)
+    const date = new Date(Date.now() + BD - (13 - i) * DAY)
       .toISOString()
       .slice(0, 10);
     const d = byDay.get(date) ?? { solved: 0, commits: 0 };
@@ -172,13 +174,13 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
         <section className="rounded-lg border border-border p-4">
           <h2 className="mb-1 font-semibold">Last 14 days</h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            {totalSolved} solved · {totalCommits} commits
+            {totalSolved} problems solved · {totalCommits} GitHub contributions
           </p>
           <div className="flex h-24 items-end gap-1">
             {days.map((d) => (
               <div
                 key={d.date}
-                title={`${d.date}: ${d.solved} solved, ${d.commits} commits`}
+                title={`${d.date}: ${d.solved} solved, ${d.commits} GitHub contributions`}
                 className="flex-1 rounded-sm bg-primary/70"
                 style={{ height: `${Math.max(4, (d.total / max) * 100)}%` }}
               />
@@ -186,8 +188,8 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
           </div>
           {totalSolved + totalCommits === 0 && (
             <p className="mt-3 text-xs text-muted-foreground">
-              No synced activity yet. This fills in after platform syncing is
-              set up.
+              No synced activity yet. Codeforces and GitHub data appears after the
+              next sync run.
             </p>
           )}
         </section>

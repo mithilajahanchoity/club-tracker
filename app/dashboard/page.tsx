@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AppNav } from "@/components/app-nav";
+import { formatDateTime } from "@/lib/format";
 
 export default function DashboardPage() {
   return (
@@ -26,7 +27,7 @@ async function DashboardContent() {
 
   const { data: accounts } = await supabase
     .from("platform_accounts")
-    .select("platform, handle, verified")
+    .select("platform, handle, verified, last_synced_at")
     .eq("profile_id", user.id)
     .order("platform");
 
@@ -58,7 +59,12 @@ async function DashboardContent() {
                     : {a.handle}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {a.verified ? "Verified" : "Unverified"} · sync coming soon
+                    {a.verified ? "Verified" : "Unverified"} ·{" "}
+                    {a.platform === "codeforces" || a.platform === "github"
+                      ? a.last_synced_at
+                        ? `synced ${formatDateTime(a.last_synced_at)}`
+                        : "waiting for first sync"
+                      : "sync coming soon"}
                   </span>
                 </li>
               ))}
