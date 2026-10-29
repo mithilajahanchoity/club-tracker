@@ -42,3 +42,12 @@ export async function requireSuperAdmin() {
   if (current.profile.role !== "super_admin") redirect("/dashboard");
   return current;
 }
+
+// Use at the top of any page that only advisors and the super admin may see.
+export async function requireStaff() {
+  const current = await requireApproved();
+  if (current.profile.role !== "advisor" && current.profile.role !== "super_admin") {
+    redirect("/dashboard");
+  }
+  return current;
+}
