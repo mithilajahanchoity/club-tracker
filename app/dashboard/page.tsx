@@ -135,7 +135,9 @@ async function DashboardContent() {
                       </span>
                     )}
                     <span className="hidden sm:inline">
-                      {a.platform === "codeforces" || a.platform === "github"
+                      {a.platform === "codeforces" ||
+                      a.platform === "github" ||
+                      a.platform === "beecrowd"
                         ? a.last_synced_at
                           ? `synced ${formatDateTime(a.last_synced_at)}`
                           : "waiting for first sync"

@@ -140,7 +140,7 @@ async function LeaderboardContent({
         <div>
           <h1 className="text-2xl font-bold">Leaderboard</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Showing {periodLabel} · Scores from Codeforces and GitHub activity
+            Showing {periodLabel} · Scores from Codeforces, GitHub, and Beecrowd activity
           </p>
         </div>
 
@@ -296,7 +296,7 @@ async function LeaderboardContent({
               <li>📅 {settings.points_per_active_day} pts per active day</li>
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Only Codeforces and GitHub are counted so far. Days follow Bangladesh time.
+              Scores include Codeforces, GitHub, and Beecrowd activity. Days follow Bangladesh time.
             </p>
           </section>
         )}

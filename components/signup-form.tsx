@@ -194,7 +194,7 @@ export function SignupForm() {
         <Field id="cf_handle" label="Codeforces" optional placeholder="tourist" value={values.cf_handle} onChange={set("cf_handle")} error={errors.cf_handle} />
         <Field id="codechef_handle" label="CodeChef" optional placeholder="handle" value={values.codechef_handle} onChange={set("codechef_handle")} error={errors.codechef_handle} />
         <Field id="vjudge_handle" label="VJudge" optional placeholder="handle" value={values.vjudge_handle} onChange={set("vjudge_handle")} error={errors.vjudge_handle} />
-        <Field id="beecrowd_handle" label="Beecrowd" optional placeholder="handle" value={values.beecrowd_handle} onChange={set("beecrowd_handle")} error={errors.beecrowd_handle} />
+        <Field id="beecrowd_handle" label="Beecrowd" optional placeholder="142984" hint="Your numeric user ID from your profile URL" value={values.beecrowd_handle} onChange={set("beecrowd_handle")} error={errors.beecrowd_handle} />
         <Field id="hackerrank_handle" label="HackerRank" optional placeholder="handle" value={values.hackerrank_handle} onChange={set("hackerrank_handle")} error={errors.hackerrank_handle} />
         <Field id="github_username" label="GitHub" optional placeholder="octocat" value={values.github_username} onChange={set("github_username")} error={errors.github_username} />
       </section>
