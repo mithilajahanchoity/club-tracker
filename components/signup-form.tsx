@@ -203,7 +203,12 @@ export function SignupForm() {
           <span>
             I agree that the club may collect my details and public activity on
             the platforms above, and that club advisors and admins can view
-            them to track participation.
+            them to track participation. I also understand that my name,
+            batch and activity scores appear on a club leaderboard visible to
+            other approved members, and that I can hide myself from it at any
+            time. I understand that my name, batch and
+            activity scores can appear on a leaderboard seen by other members,
+            and that I can hide myself from it at any time.
           </span>
         </label>
         {errors.consent && (
