@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const inputClass =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring transition-colors";
 
 export function LoginForm({ notice }: { notice?: string }) {
   const router = useRouter();
@@ -42,7 +42,12 @@ export function LoginForm({ notice }: { notice?: string }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div className="space-y-1">
+      {notice && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          {notice}
+        </div>
+      )}
+      <div className="space-y-1.5">
         <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
@@ -54,9 +59,10 @@ export function LoginForm({ notice }: { notice?: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
+          placeholder="you@example.com"
         />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="password" className="text-sm font-medium">
           Password
         </label>
@@ -68,11 +74,12 @@ export function LoginForm({ notice }: { notice?: string }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
+          placeholder="••••••••"
         />
       </div>
 
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
+      {error && !notice && (
+        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
       )}
@@ -80,14 +87,21 @@ export function LoginForm({ notice }: { notice?: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {loading ? "Signing in..." : "Sign in"}
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            Signing in…
+          </span>
+        ) : (
+          "Sign in"
+        )}
       </button>
 
       <p className="text-center text-sm text-muted-foreground">
         New member?{" "}
-        <Link href="/signup" className="underline">
+        <Link href="/signup" className="underline underline-offset-2 hover:text-foreground transition-colors">
           Create an account
         </Link>
       </p>

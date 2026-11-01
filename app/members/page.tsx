@@ -41,6 +41,13 @@ const shortPlatform: Record<string, string> = {
   github: "GH",
 };
 
+const statusColors: Record<string, string> = {
+  approved: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  suspended: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+};
+
 const first = (v: string | string[] | undefined) =>
   Array.isArray(v) ? v[0] : v;
 
@@ -50,7 +57,7 @@ export default function MembersPage({
   searchParams: Promise<SearchParams>;
 }) {
   return (
-    <Suspense fallback={<main className="p-10">Loading...</main>}>
+    <Suspense>
       <MembersContent searchParams={searchParams} />
     </Suspense>
   );
@@ -73,13 +80,11 @@ async function MembersContent({
 
   const supabase = await createClient();
 
-  // Member list with last login (runs through a checked database function).
   const { data: overview, error } = await supabase.rpc(
     "staff_member_overview"
   );
   const all = (overview ?? []) as Row[];
 
-  // Username search: find members whose platform username matches.
   let handleMatches = new Set<string>();
   if (q) {
     const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -111,7 +116,6 @@ async function MembersContent({
   rows = [...rows].sort((a, b) => {
     if (sort === "name") return a.full_name.localeCompare(b.full_name);
     if (sort === "newest") return b.created_at.localeCompare(a.created_at);
-    // login: most recent first, people who never logged in last
     return (b.last_sign_in_at ?? "").localeCompare(a.last_sign_in_at ?? "");
   });
 
@@ -121,7 +125,6 @@ async function MembersContent({
   const pageRows = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
   const ids = pageRows.map((r) => r.id);
 
-  // Handles and last contest, only for the members on this page.
   const accountsByMember = new Map<
     string,
     { platform: string; handle: string; verified: boolean }[]
@@ -164,28 +167,32 @@ async function MembersContent({
     return s ? `/members?${s}` : "/members";
   };
 
-  const inputClass =
-    "rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  const selectClass =
+    "rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring transition-colors";
 
   return (
     <>
       <AppNav role={me.role} name={me.full_name} />
       <main className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
-          <h1 className="text-2xl font-bold">Members</h1>
-          <p className="text-sm text-muted-foreground">
-            {total} {total === 1 ? "member" : "members"}
-          </p>
+          <div>
+            <h1 className="text-2xl font-bold">Members</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {total} {total === 1 ? "member" : "members"}
+              {status !== "all" && ` · filtered by ${status}`}
+            </p>
+          </div>
         </div>
 
+        {/* Filters */}
         <form method="get" className="flex flex-wrap gap-2">
           <input
             name="q"
             defaultValue={q}
-            placeholder="Search name, email, student ID or username"
-            className={`${inputClass} min-w-64 flex-1`}
+            placeholder="Search name, email, ID or username…"
+            className={`${selectClass} min-w-64 flex-1`}
           />
-          <select name="batch" defaultValue={batch} className={inputClass}>
+          <select name="batch" defaultValue={batch} className={selectClass}>
             <option value="">All batches</option>
             {batches.map((b) => (
               <option key={b} value={b}>
@@ -193,50 +200,50 @@ async function MembersContent({
               </option>
             ))}
           </select>
-          <select name="status" defaultValue={status} className={inputClass}>
+          <select name="status" defaultValue={status} className={selectClass}>
             <option value="all">All statuses</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="rejected">Rejected</option>
             <option value="suspended">Suspended</option>
           </select>
-          <select name="sort" defaultValue={sort} className={inputClass}>
+          <select name="sort" defaultValue={sort} className={selectClass}>
             <option value="login">Sort: last login</option>
             <option value="newest">Sort: newest</option>
             <option value="name">Sort: name</option>
           </select>
           <button
             type="submit"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             Apply
           </button>
           <Link
             href="/members"
-            className="rounded-md border border-border px-4 py-2 text-sm"
+            className="rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
           >
             Reset
           </Link>
         </form>
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            Could not load members. Check that the database script ran
-            successfully.
+          <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Could not load members. Check that the database script ran successfully.
           </p>
         )}
 
-        <div className="overflow-x-auto rounded-lg border border-border">
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2">Member</th>
-                <th className="px-3 py-2">Student ID</th>
-                <th className="px-3 py-2">Batch</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Usernames</th>
-                <th className="px-3 py-2">Last login</th>
-                <th className="px-3 py-2">Last contest</th>
+                <th className="px-4 py-3">Member</th>
+                <th className="px-4 py-3">Student ID</th>
+                <th className="px-4 py-3">Batch</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Usernames</th>
+                <th className="px-4 py-3">Last login</th>
+                <th className="px-4 py-3">Last contest</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -244,15 +251,16 @@ async function MembersContent({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-3 py-6 text-center text-muted-foreground"
+                    className="px-4 py-12 text-center"
                   >
-                    No members match these filters.
+                    <p className="text-2xl mb-2">🔍</p>
+                    <p className="text-muted-foreground">No members match these filters.</p>
                   </td>
                 </tr>
               )}
               {pageRows.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-3 py-2">
+                <tr key={r.id} className="transition-colors hover:bg-muted/30">
+                  <td className="px-4 py-3">
                     <Link
                       href={`/members/${r.id}`}
                       className="font-medium underline-offset-2 hover:underline"
@@ -263,30 +271,39 @@ async function MembersContent({
                       {r.email}
                     </div>
                   </td>
-                  <td className="px-3 py-2">{r.student_id}</td>
-                  <td className="px-3 py-2">{r.batch || "None"}</td>
-                  <td className="px-3 py-2 capitalize">
-                    {r.status}
+                  <td className="px-4 py-3 font-mono text-xs">{r.student_id}</td>
+                  <td className="px-4 py-3">{r.batch || "—"}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                        statusColors[r.status] ?? "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {r.status}
+                    </span>
                     {r.role !== "member" && (
-                      <span className="block text-xs text-muted-foreground">
+                      <span className="ml-1 block text-xs text-muted-foreground capitalize">
                         {r.role.replace("_", " ")}
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs">
-                    {(accountsByMember.get(r.id) ?? []).map((a) => (
-                      <span key={a.platform} className="mr-2 inline-block">
-                        <span className="text-muted-foreground">
+                  <td className="px-4 py-3 text-xs">
+                    <div className="flex flex-wrap gap-1">
+                      {(accountsByMember.get(r.id) ?? []).map((a) => (
+                        <span
+                          key={a.platform}
+                          title={a.platform}
+                          className="inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground"
+                        >
                           {shortPlatform[a.platform] ?? a.platform}
-                        </span>{" "}
-                        {a.handle}
-                      </span>
-                    ))}
+                        </span>
+                      ))}
+                    </div>
                   </td>
-                  <td className="px-3 py-2 text-xs">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
                     {formatDateTime(r.last_sign_in_at)}
                   </td>
-                  <td className="px-3 py-2 text-xs">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
                     {formatDate(lastContest.get(r.id))}
                   </td>
                 </tr>
@@ -295,11 +312,15 @@ async function MembersContent({
           </table>
         </div>
 
+        {/* Pagination */}
         {pages > 1 && (
           <nav className="flex items-center justify-between text-sm">
             {current > 1 ? (
-              <Link href={link(current - 1)} className="underline">
-                Previous
+              <Link
+                href={link(current - 1)}
+                className="rounded-lg border border-border px-3 py-1.5 transition-colors hover:bg-muted"
+              >
+                ← Previous
               </Link>
             ) : (
               <span />
@@ -308,8 +329,11 @@ async function MembersContent({
               Page {current} of {pages}
             </span>
             {current < pages ? (
-              <Link href={link(current + 1)} className="underline">
-                Next
+              <Link
+                href={link(current + 1)}
+                className="rounded-lg border border-border px-3 py-1.5 transition-colors hover:bg-muted"
+              >
+                Next →
               </Link>
             ) : (
               <span />
@@ -318,8 +342,7 @@ async function MembersContent({
         )}
 
         <p className="text-xs text-muted-foreground">
-          Last login is the last sign-in to this site. Last contest comes from
-          synced platform data and stays empty until syncing is set up.
+          Last login reflects the last sign-in to this site. Last contest comes from synced platform data.
         </p>
       </main>
     </>
