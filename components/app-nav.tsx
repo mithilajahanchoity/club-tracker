@@ -6,13 +6,17 @@ export function AppNav({ role, name }: { role: string; name: string }) {
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 p-4">
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex flex-wrap items-center gap-4 text-sm">
           <Link href="/dashboard" className="font-semibold">
             Club Tracker
           </Link>
+          <Link href="/leaderboard">Leaderboard</Link>
           {isStaff && <Link href="/members">Members</Link>}
           {role === "super_admin" && (
-            <Link href="/admin/approvals">Approvals</Link>
+            <>
+              <Link href="/admin/approvals">Approvals</Link>
+              <Link href="/admin/score">Scoring</Link>
+            </>
           )}
         </nav>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
