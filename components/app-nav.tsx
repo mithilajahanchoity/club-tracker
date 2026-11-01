@@ -1,26 +1,50 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AppNav({ role, name }: { role: string; name: string }) {
   const isStaff = role === "advisor" || role === "super_admin";
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 p-4">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <nav className="flex flex-wrap items-center gap-4 text-sm">
-          <Link href="/dashboard" className="font-semibold">
+          <Link href="/dashboard" className="font-semibold tracking-tight">
             Club Tracker
           </Link>
-          <Link href="/leaderboard">Leaderboard</Link>
-          {isStaff && <Link href="/members">Members</Link>}
+          <Link
+            href="/leaderboard"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Leaderboard
+          </Link>
+          {isStaff && (
+            <Link
+              href="/members"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Members
+            </Link>
+          )}
           {role === "super_admin" && (
             <>
-              <Link href="/admin/approvals">Approvals</Link>
-              <Link href="/admin/score">Scoring</Link>
+              <Link
+                href="/admin/approvals"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Approvals
+              </Link>
+              <Link
+                href="/admin/score"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Scoring
+              </Link>
             </>
           )}
         </nav>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span>{name}</span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="hidden sm:inline">{name}</span>
+          <ThemeToggle />
           <SignOutButton />
         </div>
       </div>

@@ -18,13 +18,40 @@ const platformLabels: Record<string, string> = {
   github: "GitHub",
 };
 
+const platformIcons: Record<string, string> = {
+  codeforces: "⚡",
+  codechef: "🍳",
+  vjudge: "⚖",
+  beecrowd: "🐝",
+  hackerrank: "💻",
+  github: "🐙",
+};
+
+const statusColors: Record<string, string> = {
+  approved: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  suspended: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+};
+
+function getActivityWindow() {
+  const DAY = 86400000;
+  const BD = 6 * 3600000;
+  const now = Date.now();
+  const since = new Date(now + BD - 13 * DAY).toISOString().slice(0, 10);
+  const dayDates = Array.from({ length: 14 }, (_, i) =>
+    new Date(now + BD - (13 - i) * DAY).toISOString().slice(0, 10)
+  );
+  return { since, dayDates };
+}
+
 export default function MemberPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   return (
-    <Suspense fallback={<main className="p-10">Loading...</main>}>
+    <Suspense>
       <MemberContent params={params} />
     </Suspense>
   );
@@ -46,18 +73,13 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
     .maybeSingle();
   if (!member) notFound();
 
-  // Last login lives in the auth system; read it through the checked function.
   const { data: overview } = await supabase.rpc("staff_member_overview");
   const lastSignIn =
     ((overview ?? []) as { id: string; last_sign_in_at: string | null }[]).find(
       (r) => r.id === id
     )?.last_sign_in_at ?? null;
 
-  const DAY = 86400000;
-  const BD = 6 * 3600000; // Bangladesh time, same as the sync script
-  const since = new Date(Date.now() + BD - 13 * DAY)
-    .toISOString()
-    .slice(0, 10);
+  const { since, dayDates } = getActivityWindow();
 
   const [{ data: accounts }, { data: contests }, { data: activity }] =
     await Promise.all([
@@ -79,7 +101,6 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
         .gte("activity_date", since),
     ]);
 
-  // Viewing someone's phone number is recorded in the audit log.
   if (id !== user.id) {
     try {
       await createAdminClient().from("audit_logs").insert({
@@ -92,7 +113,6 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
     }
   }
 
-  // Last 14 days, newest last.
   const byDay = new Map<string, { solved: number; commits: number }>();
   for (const a of activity ?? []) {
     const d = byDay.get(a.activity_date) ?? { solved: 0, commits: 0 };
@@ -100,10 +120,7 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
     d.commits += a.commits;
     byDay.set(a.activity_date, d);
   }
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date(Date.now() + BD - (13 - i) * DAY)
-      .toISOString()
-      .slice(0, 10);
+  const days = dayDates.map((date) => {
     const d = byDay.get(date) ?? { solved: 0, commits: 0 };
     return { date, ...d, total: d.solved + d.commits };
   });
@@ -119,23 +136,36 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <AppNav role={me.role} name={me.full_name} />
-      <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-        <Link href="/members" className="text-sm underline">
-          Back to members
+      <main className="mx-auto max-w-4xl space-y-5 p-4 md:p-6">
+        <Link href="/members" className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          ← Back to members
         </Link>
 
-        <header>
-          <h1 className="text-2xl font-bold">{member.full_name}</h1>
-          <p className="text-sm capitalize text-muted-foreground">
-            {member.status} · {member.role.replace("_", " ")}
-          </p>
+        {/* Header */}
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">{member.full_name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                  statusColors[member.status] ?? "bg-muted text-muted-foreground"
+                }`}
+              >
+                {member.status}
+              </span>
+              <span className="text-xs capitalize text-muted-foreground">
+                {member.role.replace("_", " ")}
+              </span>
+            </div>
+          </div>
         </header>
 
-        <section className="grid gap-4 rounded-lg border border-border p-4 text-sm sm:grid-cols-2">
+        {/* Info grid */}
+        <section className="grid gap-4 rounded-xl border border-border bg-card p-4 text-sm sm:grid-cols-2">
           <Info label="Email" value={member.email} />
-          <Info label="Contact" value={member.contact || "None"} />
-          <Info label="Student ID" value={member.student_id} />
-          <Info label="Batch" value={member.batch || "None"} />
+          <Info label="Contact" value={member.contact || "—"} />
+          <Info label="Student ID" value={member.student_id} mono />
+          <Info label="Batch" value={member.batch || "—"} />
           <Info label="Last login" value={formatDateTime(lastSignIn)} />
           <Info label="Joined" value={formatDate(member.created_at)} />
           <Info
@@ -144,88 +174,134 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
           />
         </section>
 
-        <section className="rounded-lg border border-border p-4">
-          <h2 className="mb-3 font-semibold">Platform usernames</h2>
+        {/* Platform usernames */}
+        <section className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="font-semibold">Platform usernames</h2>
+          </div>
           {accounts && accounts.length > 0 ? (
             <ul className="divide-y divide-border text-sm">
               {accounts.map((a) => (
                 <li
                   key={a.platform}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
                 >
-                  <span>
+                  <div className="flex items-center gap-2">
+                    <span>{platformIcons[a.platform] ?? "🔗"}</span>
                     <span className="font-medium">
                       {platformLabels[a.platform] ?? a.platform}
                     </span>
-                    : {a.handle}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {a.verified ? "Verified" : "Unverified"} · last synced{" "}
-                    {formatDateTime(a.last_synced_at).replace("Never", "never")}
-                  </span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {a.handle}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    {a.verified ? (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700 dark:bg-green-950 dark:text-green-300">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                        Unverified
+                      </span>
+                    )}
+                    <span className="text-muted-foreground">
+                      synced {formatDateTime(a.last_synced_at).replace("Never", "never")}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">None added.</p>
-          )}
-        </section>
-
-        <section className="rounded-lg border border-border p-4">
-          <h2 className="mb-1 font-semibold">Last 14 days</h2>
-          <p className="mb-3 text-sm text-muted-foreground">
-            {totalSolved} problems solved · {totalCommits} GitHub contributions
-          </p>
-          <div className="flex h-24 items-end gap-1">
-            {days.map((d) => (
-              <div
-                key={d.date}
-                title={`${d.date}: ${d.solved} solved, ${d.commits} GitHub contributions`}
-                className="flex-1 rounded-sm bg-primary/70"
-                style={{ height: `${Math.max(4, (d.total / max) * 100)}%` }}
-              />
-            ))}
-          </div>
-          {totalSolved + totalCommits === 0 && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              No synced activity yet. Codeforces and GitHub data appears after the
-              next sync run.
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No platform usernames added.
             </p>
           )}
         </section>
 
-        <section className="rounded-lg border border-border p-4">
-          <h2 className="mb-3 font-semibold">Recent contests</h2>
+        {/* Activity chart */}
+        <section className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-3">
+            <h2 className="font-semibold">Last 14 days</h2>
+            <p className="text-sm text-muted-foreground">
+              {totalSolved} problems solved &middot; {totalCommits} GitHub contributions
+            </p>
+          </div>
+          {totalSolved + totalCommits > 0 ? (
+            <>
+              <div className="flex h-24 items-end gap-1">
+                {days.map((d) => (
+                  <div
+                    key={d.date}
+                    className="group relative flex-1"
+                    style={{ height: "100%" }}
+                  >
+                    <div
+                      className="absolute bottom-0 w-full rounded-sm bg-primary/70 transition-all group-hover:bg-primary"
+                      style={{ height: `${Math.max(4, (d.total / max) * 100)}%` }}
+                      title={`${d.date}: ${d.solved} solved, ${d.commits} contributions`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                <span>{days[0].date.slice(5)}</span>
+                <span>{days[6].date.slice(5)}</span>
+                <span>{days[13].date.slice(5)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border">
+              <p className="text-xs text-muted-foreground">
+                No synced activity yet. Data appears after the next sync run.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Recent contests */}
+        <section className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="font-semibold">Recent contests</h2>
+          </div>
           {contests && contests.length > 0 ? (
             <ul className="divide-y divide-border text-sm">
               {contests.map((c) => (
                 <li
                   key={`${c.platform}-${c.contest_name}-${c.contest_date}`}
-                  className="flex flex-wrap justify-between gap-2 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
                 >
-                  <span>
-                    {c.contest_name}{" "}
-                    <span className="text-muted-foreground">
+                  <div>
+                    <span className="font-medium">{c.contest_name}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">
                       ({platformLabels[c.platform] ?? c.platform})
                     </span>
-                  </span>
-                  <span className="text-xs text-muted-foreground">
+                  </div>
+                  <div className="text-xs text-muted-foreground">
                     {formatDate(c.contest_date)}
-                    {c.rank != null && ` · rank ${c.rank}`}
-                  </span>
+                    {c.rank != null && (
+                      <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5">
+                        rank {c.rank}
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
               No contest data yet.
             </p>
           )}
         </section>
 
+        {/* Admin actions */}
         {canManage && (
-          <section className="rounded-lg border border-border p-4">
-            <h2 className="mb-3 font-semibold">Admin actions</h2>
+          <section className="rounded-xl border border-border bg-card p-4">
+            <h2 className="mb-1 font-semibold">Admin actions</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Every change is saved in the audit log.
+            </p>
             <form action={changeMember} className="flex flex-wrap gap-2">
               <input type="hidden" name="id" value={member.id} />
               {member.role === "member" ? (
@@ -233,7 +309,7 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                   type="submit"
                   name="action"
                   value="make_advisor"
-                  className="rounded-md border border-border px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
                 >
                   Make advisor
                 </button>
@@ -242,7 +318,7 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                   type="submit"
                   name="action"
                   value="make_member"
-                  className="rounded-md border border-border px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
                 >
                   Make regular member
                 </button>
@@ -252,7 +328,7 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                   type="submit"
                   name="action"
                   value="reactivate"
-                  className="rounded-md border border-border px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-sm text-green-700 transition-colors hover:bg-green-100 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
                 >
                   Reactivate account
                 </button>
@@ -261,15 +337,12 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                   type="submit"
                   name="action"
                   value="suspend"
-                  className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive"
+                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/20"
                 >
                   Suspend account
                 </button>
               )}
             </form>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Every change is saved in the audit log.
-            </p>
           </section>
         )}
       </main>
@@ -277,13 +350,21 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p>{value}</p>
+      <p className={mono ? "font-mono text-sm mt-0.5" : "mt-0.5"}>{value}</p>
     </div>
   );
 }
