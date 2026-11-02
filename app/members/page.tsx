@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AppNav } from "@/components/app-nav";
+import { PlatformIcon } from "@/components/platform-icon";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 const PAGE_SIZE = 25;
@@ -295,8 +296,9 @@ async function MembersContent({
                           key={a.platform}
                           href={`/members/${r.id}?platform=${a.platform}`}
                           title={`View ${a.platform} stats`}
-                          className="inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                          className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                         >
+                          <PlatformIcon platform={a.platform} className="h-3 w-3 shrink-0" />
                           {shortPlatform[a.platform] ?? a.platform}
                         </Link>
                       ))}

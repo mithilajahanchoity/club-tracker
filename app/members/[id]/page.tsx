@@ -13,6 +13,7 @@ import { getCodeforcesPublicDetails } from "@/lib/codeforces";
 import { getVJudgePublicDetails } from "@/lib/vjudge";
 import { getGitHubPublicDetails } from "@/lib/github";
 import { SyncPlatformButton } from "@/components/sync-platform-button";
+import { PlatformIcon } from "@/components/platform-icon";
 import { changeMember } from "./actions";
 
 const platformLabels: Record<string, string> = {
@@ -242,7 +243,11 @@ async function MemberContent({
                   className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
                 >
                   <div className="flex items-center gap-2">
-                    <span>{platformIcons[a.platform] ?? "🔗"}</span>
+                    <PlatformIcon
+                      platform={a.platform}
+                      className="h-4 w-4 shrink-0"
+                      fallback={<span>{platformIcons[a.platform] ?? "🔗"}</span>}
+                    />
                     <span className="font-medium">
                       {platformLabels[a.platform] ?? a.platform}
                     </span>
