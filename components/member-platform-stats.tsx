@@ -6,6 +6,7 @@ import { BeecrowdProfileView } from "./beecrowd-profile-view";
 import { CodeforcesProfileView } from "./codeforces-profile-view";
 import { VJudgeProfileView } from "./vjudge-profile-view";
 import { GitHubProfileView } from "./github-profile-view";
+import { PlatformIcon } from "./platform-icon";
 import type { BeecrowdPublicProfile } from "@/lib/beecrowd";
 import type { CodeforcesPublicProfile } from "@/lib/codeforces";
 import type { VJudgePublicProfile } from "@/lib/vjudge";
@@ -335,7 +336,7 @@ export function MemberPlatformStats({
                     : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                <span>{platformIcons[plat]}</span>
+                <PlatformIcon platform={plat} className="h-4 w-4 shrink-0" fallback={platformIcons[plat]} />
                 <span>{platformLabels[plat] ?? plat}</span>
               </button>
             );
@@ -377,7 +378,7 @@ export function MemberPlatformStats({
           {activeAccount && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{platformIcons[activeAccount.platform]}</span>
+                <PlatformIcon platform={activeAccount.platform} className="h-7 w-7 shrink-0" fallback={<span className="text-2xl">{platformIcons[activeAccount.platform]}</span>} />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-base">

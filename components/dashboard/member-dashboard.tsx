@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { SyncPlatformButton } from "@/components/sync-platform-button";
+import { PlatformIcon } from "@/components/platform-icon";
 import type { Profile } from "@/lib/auth";
 
 type PlatformAccount = {
@@ -207,7 +208,11 @@ export function MemberDashboard({
                 className="flex items-center justify-between gap-2 px-5 py-3.5 text-sm"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-lg">{platformIcons[a.platform] ?? "🔗"}</span>
+                  <PlatformIcon
+                    platform={a.platform}
+                    className="h-5 w-5 shrink-0"
+                    fallback={<span className="text-lg">{platformIcons[a.platform] ?? "🔗"}</span>}
+                  />
                   <div>
                     <span className="font-medium">
                       {platformLabels[a.platform] ?? a.platform}
