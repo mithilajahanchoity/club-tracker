@@ -24,9 +24,9 @@ async function HomeContent() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-3xl text-primary-foreground shadow-lg">
           🏆
         </div>
-        <h1 className="text-4xl font-bold tracking-tight">Club Tracker</h1>
+        <h1 className="text-4xl font-bold tracking-tight">ICE Programming Club Tracker</h1>
         <p className="max-w-sm text-muted-foreground">
-          Track programming activity, contests, and engagement for club members.
+          Track members programming activity, contests, and engagement for club members.
         </p>
       </div>
       <div className="flex gap-3">
