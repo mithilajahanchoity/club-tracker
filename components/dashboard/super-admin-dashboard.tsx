@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { decideMember } from "@/app/admin/approvals/actions";
+import { PlatformIcon } from "@/components/platform-icon";
 import type { Profile } from "@/lib/auth";
 
 type MemberRecord = {
@@ -367,7 +368,7 @@ export function SuperAdminDashboard({
                 return (
                   <div key={plat} className="rounded-lg border border-border bg-muted/20 p-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium">
-                      <span>{platformIcons[plat]}</span>
+                      <PlatformIcon platform={plat} className="h-4 w-4 shrink-0" fallback={platformIcons[plat]} />
                       <span>{platformNames[plat]}</span>
                     </div>
                     <p className="mt-2 text-xl font-bold">{stats.total}</p>
@@ -526,7 +527,7 @@ export function SuperAdminDashboard({
                 return (
                   <div key={plat} className="rounded-lg border border-border bg-muted/20 p-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium">
-                      <span>{platformIcons[plat]}</span>
+                      <PlatformIcon platform={plat} className="h-4 w-4 shrink-0" fallback={platformIcons[plat]} />
                       <span>{platformNames[plat]}</span>
                     </div>
                     <p className="mt-2 text-xl font-bold">{stats.total}</p>

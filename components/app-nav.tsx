@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -8,8 +9,21 @@ export function AppNav({ role, name }: { role: string; name: string }) {
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <nav className="flex flex-wrap items-center gap-4 text-sm">
-          <Link href="/dashboard" className="font-semibold tracking-tight">
-            Club Tracker
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 font-semibold tracking-tight hover:opacity-90 transition-opacity"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-white p-0.5 overflow-hidden shadow-2xs">
+              <Image
+                src="/images/club-logo.jpg"
+                alt="ICE Programming Club"
+                width={28}
+                height={28}
+                className="h-full w-full object-contain"
+              />
+            </span>
+            <span className="hidden sm:inline">ICE Club Tracker</span>
+            <span className="sm:hidden">Tracker</span>
           </Link>
           <Link
             href="/leaderboard"

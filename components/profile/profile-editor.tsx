@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { SyncPlatformButton } from "@/components/sync-platform-button";
+import { PlatformIcon } from "@/components/platform-icon";
 import {
   updateProfileInfo,
   updatePlatformAccounts,
@@ -538,7 +539,11 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 font-semibold text-sm">
-                          <span className="text-lg">{meta.icon}</span>
+                          <PlatformIcon
+                            platform={platformKey}
+                            className="h-5 w-5 shrink-0"
+                            fallback={<span className="text-lg">{meta.icon}</span>}
+                          />
                           <span>{meta.label}</span>
                         </div>
 
