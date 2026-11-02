@@ -108,4 +108,3 @@ export function PlatformIcon({
       return <span className={className}>{fallback}</span>;
   }
 }
-
