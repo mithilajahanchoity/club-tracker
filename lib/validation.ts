@@ -43,3 +43,26 @@ export const signupSchema = z
   });
 
 export type SignupInput = z.infer<typeof signupSchema>;
+
+export const profileUpdateSchema = z.object({
+  full_name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name cannot exceed 100 characters"),
+  batch: z.string().trim().min(1, "Batch is required").max(20, "Batch cannot exceed 20 characters"),
+  contact: z
+    .string()
+    .trim()
+    .regex(/^[+0-9][0-9 -]{6,19}$/, "Enter a valid phone number")
+    .or(z.literal("")),
+});
+
+export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
+
+export const platformAccountsSchema = z.object({
+  codeforces: handle,
+  beecrowd: handle,
+  hackerrank: handle,
+  github: handle,
+  codechef: handle,
+  vjudge: handle,
+});
+
+export type PlatformAccountsInput = z.infer<typeof platformAccountsSchema>;

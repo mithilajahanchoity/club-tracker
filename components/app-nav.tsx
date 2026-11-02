@@ -41,9 +41,21 @@ export function AppNav({ role, name }: { role: string; name: string }) {
               </Link>
             </>
           )}
+          <Link
+            href="/profile"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Profile
+          </Link>
         </nav>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">{name}</span>
+          <Link
+            href="/profile"
+            className="hidden sm:inline transition-colors hover:text-foreground"
+            title="View & Edit Profile"
+          >
+            {name}
+          </Link>
           <ThemeToggle />
           <SignOutButton />
         </div>

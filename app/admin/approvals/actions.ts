@@ -37,4 +37,5 @@ export async function decideMember(formData: FormData) {
   });
 
   revalidatePath("/admin/approvals");
+  revalidatePath("/dashboard");
 }

@@ -2,11 +2,13 @@
 //   Codeforces: solved problems per day, contest history, current rating
 //   GitHub:     contributions per day
 //   Beecrowd:   solved problems, rank/rating
+//   HackerRank: solved problems, badges/stars, contest history
 // Other platforms are skipped until their adapters exist.
 //
 // Run by .github/workflows/sync.yml. To test locally:
 //   node --env-file=.env.local scripts/sync/sync.mjs --only=codeforces
 //   node --env-file=.env.local scripts/sync/sync.mjs --only=beecrowd
+//   node --env-file=.env.local scripts/sync/sync.mjs --only=hackerrank
 //
 // Needs: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY,
 //        GH_SYNC_TOKEN (only for GitHub). Secrets are never printed.
@@ -21,15 +23,18 @@ const GH_GRAPHQL = process.env.GITHUB_GRAPHQL_URL ?? "https://api.github.com/gra
 const BEECROWD_TOKEN = process.env.BEECROWD_TOKEN;
 const BEECROWD_COOKIE = process.env.BEECROWD_COOKIE;
 const BEECROWD_PROXY = process.env.BEECROWD_PROXY_URL;
+const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY;
 const BEECROWD_BASE = process.env.BEECROWD_BASE_URL ?? "https://judge.beecrowd.com";
+const HACKERRANK_BASE = process.env.HACKERRANK_BASE_URL ?? "https://www.hackerrank.com";
+const HACKERRANK_PROXY = process.env.HACKERRANK_PROXY_URL;
+const HACKERRANK_COOKIE = process.env.HACKERRANK_COOKIE;
 const CF_DELAY_MS = Number(process.env.SYNC_CF_DELAY_MS ?? 2100); // Codeforces asks for ~1 call / 2 s
-const WINDOW_DAYS = 30;
 const TZ_OFFSET_HOURS = 6; // Bangladesh time, so "a day" matches the club's day
 const USER_AGENT = "club-tracker-sync (university programming club project)";
 
 const onlyArg = process.argv.find((a) => a.startsWith("--only="));
 const only = onlyArg ? onlyArg.split("=")[1] : null;
-const platforms = ["codeforces", "github", "beecrowd"].filter((p) => !only || p === only);
+const platforms = ["codeforces", "github", "beecrowd", "hackerrank", "vjudge"].filter((p) => !only || p === only);
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
@@ -122,7 +127,7 @@ async function syncCodeforces(acct) {
 
   // If the list was cut off at COUNT, the oldest day is incomplete: skip it.
   const nowSec = Math.floor(Date.now() / 1000);
-  const cutoff = nowSec - WINDOW_DAYS * 86400;
+  const cutoff = nowSec - 365 * 86400; // Store up to 365 days for the 52-week heatmap
   let reliableFrom = 0;
   if (subs.length >= COUNT) {
     reliableFrom = Math.min(...subs.map((s) => s.creationTimeSeconds)) + 86400;
@@ -191,7 +196,8 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 
 async function syncGithub(acct) {
   const to = new Date();
-  const from = new Date(Date.now() - WINDOW_DAYS * 86400000);
+  // Sync up to 365 days of contributions for the 52-week calendar heatmap
+  const from = new Date(Date.now() - 365 * 86400000);
   const { status, body } = await fetchJson(GH_GRAPHQL, {
     method: "POST",
     headers: {
@@ -255,13 +261,68 @@ async function syncBeecrowd(acct) {
     } else {
       throw new Error(`Beecrowd API returned HTTP ${res.status}`);
     }
+  } else if (FIRECRAWL_KEY) {
+    // Mode 2: Firecrawl scraping engine (bypasses Cloudflare automatically)
+    const fcRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_KEY.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: `https://judge.beecrowd.com/en/profile/${handle}`,
+        formats: ["rawHtml", "html"],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!fcRes.ok) {
+      throw new Error(`Firecrawl API returned HTTP ${fcRes.status}`);
+    }
+
+    const fcData = await fcRes.json().catch(() => null);
+    const text = fcData?.data?.rawHtml || fcData?.data?.html || "";
+
+    const solvedMatch =
+      text.match(/class="profile-solved-number"[^>]*>(\d+)<\/span>/i) ||
+      text.match(/Solved:\s*<\/span>\s*<span[^>]*>(\d+)/i) ||
+      text.match(/Solucionados:\s*<\/span>\s*<span[^>]*>(\d+)/i) ||
+      text.match(/(?:Solved|Solucionados)[^\d]{1,50}(\d+)/i) ||
+      text.match(/class="[^"]*(?:statistic-value|number|solved)[^"]*"[^>]*>(\d+)<\/span>/i);
+
+    const rankMatch =
+      text.match(/class="profile-rank-text"[^>]*>([^<]+)<\/span>/i) ||
+      text.match(/Rank:\s*<\/span>\s*<span[^>]*>([\d,]+)/i) ||
+      text.match(/(?:Rank|Posição|Posicao)[^\d]{1,50}([\d,]+)/i);
+
+    const pointsMatch =
+      text.match(/class="profile-rank-points-text"[^>]*>([\d,.]+)<\/span>/i) ||
+      text.match(/Points:\s*<\/span>\s*<span[^>]*>([\d,.]+)/i) ||
+      text.match(/(?:Points|Pontos)[^\d]{1,50}([\d,.]+)/i);
+
+    if (solvedMatch) {
+      totalSolved = parseInt(solvedMatch[1], 10);
+    } else {
+      throw new Error("Could not parse solved problem count from profile page via Firecrawl.");
+    }
+
+    if (rankMatch) {
+      const cleaned = rankMatch[1].replace(/,/g, "").trim();
+      const parsed = parseInt(cleaned, 10);
+      if (!isNaN(parsed)) rank = parsed;
+    }
+    if (pointsMatch) points = Math.round(parseFloat(pointsMatch[1].replace(/,/g, "")));
   } else {
-    // Mode 2: Web scraping (direct or through proxy)
+    // Mode 3: Direct web scraping or proxy
     let fetchUrl = `${BEECROWD_BASE}/en/profile/${handle}`;
     if (BEECROWD_PROXY) {
-      fetchUrl = BEECROWD_PROXY.includes("{url}")
-        ? BEECROWD_PROXY.replace("{url}", encodeURIComponent(fetchUrl))
-        : `${BEECROWD_PROXY}?url=${encodeURIComponent(fetchUrl)}`;
+      const rawProxy = BEECROWD_PROXY.trim();
+      if (rawProxy.includes("{url}")) {
+        fetchUrl = rawProxy.replace("{url}", encodeURIComponent(fetchUrl));
+      } else {
+        const sep = rawProxy.includes("?") ? "&" : "?";
+        fetchUrl = `${rawProxy}${sep}url=${encodeURIComponent(fetchUrl)}`;
+      }
     }
 
     const headers = {
@@ -276,37 +337,34 @@ async function syncBeecrowd(acct) {
 
     const res = await fetch(fetchUrl, {
       headers,
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(BEECROWD_PROXY ? 25000 : 20000),
     });
 
     const text = await res.text();
 
     if (text.includes("Just a moment...") || res.status === 403) {
-      if (process.env.BEECROWD_MOCK === "true") {
-        totalSolved = 25;
-        rank = 1200;
-        console.warn(`[DEV MOCK] Simulated stats for Beecrowd ${acct.handle}`);
-      } else {
-        throw new Error(
-          "Cloudflare challenge active. Set BEECROWD_TOKEN, BEECROWD_COOKIE, or BEECROWD_PROXY_URL to sync."
-        );
-      }
+      throw new Error(
+        "Cloudflare challenge active. Set BEECROWD_TOKEN, BEECROWD_COOKIE, or BEECROWD_PROXY_URL to sync."
+      );
     } else if (res.status === 404) {
       throw new Error(`Profile not found for '${acct.handle}'`);
     } else if (res.status >= 400) {
       throw new Error(`HTTP ${res.status}`);
     } else {
       const solvedMatch =
+        text.match(/class="profile-solved-number"[^>]*>(\d+)<\/span>/i) ||
         text.match(/Solved:\s*<\/span>\s*<span[^>]*>(\d+)/i) ||
         text.match(/Solucionados:\s*<\/span>\s*<span[^>]*>(\d+)/i) ||
         text.match(/(?:Solved|Solucionados)[^\d]{1,50}(\d+)/i) ||
         text.match(/class="[^"]*(?:statistic-value|number|solved)[^"]*"[^>]*>(\d+)<\/span>/i);
 
       const rankMatch =
+        text.match(/class="profile-rank-text"[^>]*>([^<]+)<\/span>/i) ||
         text.match(/Rank:\s*<\/span>\s*<span[^>]*>(\d+)/i) ||
         text.match(/(?:Rank|Posição|Posicao)[^\d]{1,50}(\d+)/i);
 
       const pointsMatch =
+        text.match(/class="profile-rank-points-text"[^>]*>([\d,.]+)<\/span>/i) ||
         text.match(/Points:\s*<\/span>\s*<span[^>]*>([\d,.]+)/i) ||
         text.match(/(?:Points|Pontos)[^\d]{1,50}([\d,.]+)/i);
 
@@ -316,7 +374,11 @@ async function syncBeecrowd(acct) {
         throw new Error("Could not parse solved problem count from profile page.");
       }
 
-      if (rankMatch) rank = parseInt(rankMatch[1], 10);
+      if (rankMatch) {
+        const cleaned = rankMatch[1].replace(/,/g, "").trim();
+        const parsed = parseInt(cleaned, 10);
+        if (!isNaN(parsed)) rank = parsed;
+      }
       if (pointsMatch) points = Math.round(parseFloat(pointsMatch[1].replace(/,/g, "")));
     }
   }
@@ -360,9 +422,233 @@ async function syncBeecrowd(acct) {
   return `${totalSolved} total solved (${newDailySolved} credited today), rank: ${rank ?? "N/A"}`;
 }
 
+// ---------- HackerRank ----------
+
+async function fetchHackerRankJson(path) {
+  let url = `${HACKERRANK_BASE}${path}`;
+  if (HACKERRANK_PROXY) {
+    url = HACKERRANK_PROXY.includes("{url}")
+      ? HACKERRANK_PROXY.replace("{url}", encodeURIComponent(url))
+      : `${HACKERRANK_PROXY}?url=${encodeURIComponent(url)}`;
+  }
+
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    Accept: "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+  if (HACKERRANK_COOKIE) {
+    headers.Cookie = HACKERRANK_COOKIE;
+  }
+
+  return fetchJson(url, { headers });
+}
+
+async function syncHackerrank(acct) {
+  const handle = encodeURIComponent(acct.handle.trim());
+  let totalSolved = 0;
+  let rating = null;
+
+  if (process.env.HACKERRANK_MOCK === "true") {
+    totalSolved = 25;
+    rating = 5;
+    console.warn(`[DEV MOCK] Simulated stats for HackerRank ${acct.handle}`);
+  } else {
+    const [badgesRes, profileRes] = await Promise.all([
+      fetchHackerRankJson(`/rest/hackers/${handle}/badges`),
+      fetchHackerRankJson(`/rest/contests/master/hackers/${handle}/profile`),
+    ]);
+
+    if (badgesRes.status === 404 && profileRes.status === 404) {
+      throw new Error(`Profile not found for '${acct.handle}'`);
+    }
+
+    if (badgesRes.status === 403 || profileRes.status === 403) {
+      throw new Error(
+        "Cloudflare/bot protection active on HackerRank. Set HACKERRANK_COOKIE or HACKERRANK_PROXY_URL, or test with HACKERRANK_MOCK=true."
+      );
+    }
+
+    if (badgesRes.status >= 500 && profileRes.status >= 500) {
+      throw new Error(`HackerRank API returned HTTP ${badgesRes.status}`);
+    }
+
+    const badges = Array.isArray(badgesRes.body?.models) ? badgesRes.body.models : [];
+    const badgeSolved = badges.reduce((acc, b) => acc + (Number(b.solved) || 0), 0);
+    const profileSolved = Number(profileRes.body?.model?.solved_challenges_count || 0);
+    totalSolved = Math.max(badgeSolved, profileSolved);
+
+    const totalStars = badges.reduce((acc, b) => acc + (Number(b.stars) || 0), 0);
+    const level = profileRes.body?.model?.level ? Number(profileRes.body.model.level) : null;
+    rating = totalStars > 0 ? totalStars : level;
+  }
+
+  const today = localDate(Math.floor(Date.now() / 1000));
+
+  const { data: pastRows, error: qErr } = await supabase
+    .from("activity_daily")
+    .select("activity_date, solved")
+    .eq("profile_id", acct.profile_id)
+    .eq("platform", "hackerrank");
+
+  if (qErr) throw new Error(`DB error: ${qErr.message}`);
+
+  const previousSum = (pastRows ?? []).reduce((acc, r) => acc + (r.solved || 0), 0);
+  const todayRow = (pastRows ?? []).find((r) => r.activity_date === today);
+  const todaySolvedSoFar = todayRow?.solved ?? 0;
+
+  let newDailySolved;
+  if (previousSum === 0) {
+    newDailySolved = totalSolved;
+  } else {
+    const delta = Math.max(0, totalSolved - previousSum);
+    newDailySolved = todaySolvedSoFar + delta;
+  }
+
+  await upsertRows(
+    "activity_daily",
+    [
+      {
+        profile_id: acct.profile_id,
+        platform: "hackerrank",
+        activity_date: today,
+        solved: newDailySolved,
+        rating: rating ?? null,
+      },
+    ],
+    "profile_id,platform,activity_date"
+  );
+
+  // Attempt contest history (non-blocking)
+  try {
+    if (process.env.HACKERRANK_MOCK !== "true") {
+      const contestRes = await fetchHackerRankJson(`/rest/hackers/${handle}/rating_histories_elo`);
+      const contestModels = contestRes.body?.models ?? [];
+      if (Array.isArray(contestModels) && contestModels.length > 0) {
+        const contestRows = contestModels
+          .filter((c) => c.contest_name && c.date)
+          .map((c) => ({
+            profile_id: acct.profile_id,
+            platform: "hackerrank",
+            contest_name: String(c.contest_name).slice(0, 200),
+            contest_date: localDate(Math.floor(new Date(c.date).getTime() / 1000)),
+            rank: c.rank ? Number(c.rank) : null,
+            rating_change: c.rating_change ? Number(c.rating_change) : null,
+          }));
+        if (contestRows.length > 0) {
+          await upsertRows(
+            "contest_participation",
+            contestRows,
+            "profile_id,platform,contest_name,contest_date"
+          );
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if contest history is unavailable
+  }
+
+  return `${totalSolved} total solved (${newDailySolved} credited today), badges/rating: ${rating ?? "N/A"}`;
+}
+
+// ---------- VJudge ----------
+
+async function syncVjudge(acct) {
+  const clean = acct.handle.trim();
+  const vjudgeBase = process.env.VJUDGE_BASE_URL ?? "https://vjudge.net";
+
+  const headers = {
+    "User-Agent": USER_AGENT,
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  };
+
+  const res = await fetch(`${vjudgeBase}/user/${encodeURIComponent(clean)}`, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (res.status === 404) {
+    throw new Error(`VJudge user '${clean}' not found.`);
+  }
+
+  let totalSolved = 0;
+  let rank = null;
+
+  if (res.ok) {
+    const html = await res.text();
+    const headerMatch = html.match(/id="profile-header-data">([\s\S]*?)<\/script>/i);
+    if (headerMatch) {
+      try {
+        const parsed = JSON.parse(headerMatch[1]);
+        if (typeof parsed?.counts?.acAll === "number") totalSolved = parsed.counts.acAll;
+        if (typeof parsed?.ranks?.all === "number") rank = parsed.ranks.all;
+      } catch {}
+    }
+  }
+
+  // Fetch daily solve stats for history
+  const statsRes = await fetch(`${vjudgeBase}/user/dailySolveStat/${encodeURIComponent(clean)}`, {
+    headers: {
+      ...headers,
+      "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  const dayMap = new Map();
+  if (statsRes.ok) {
+    const statsData = await statsRes.json().catch(() => null);
+    if (Array.isArray(statsData)) {
+      for (const entry of statsData) {
+        if (Array.isArray(entry) && entry[0] > 0) {
+          const firstAcSec = entry[0];
+          const dateStr = localDate(firstAcSec);
+          dayMap.set(dateStr, (dayMap.get(dateStr) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  if (dayMap.size > 0) {
+    const dailyRows = [...dayMap].map(([activity_date, solved]) => ({
+      profile_id: acct.profile_id,
+      platform: "vjudge",
+      activity_date,
+      solved,
+      rating: rank,
+    }));
+    await upsertRows("activity_daily", dailyRows, "profile_id,platform,activity_date");
+  } else if (totalSolved > 0) {
+    const today = localDate(Math.floor(Date.now() / 1000));
+    await upsertRows(
+      "activity_daily",
+      [
+        {
+          profile_id: acct.profile_id,
+          platform: "vjudge",
+          activity_date: today,
+          solved: totalSolved,
+          rating: rank,
+        },
+      ],
+      "profile_id,platform,activity_date"
+    );
+  }
+
+  return `${totalSolved} total solved problems, rank: ${rank ? "#" + rank : "N/A"}`;
+}
+
 // ---------- Runner ----------
 
-const adapters = { codeforces: syncCodeforces, github: syncGithub, beecrowd: syncBeecrowd };
+const adapters = {
+  codeforces: syncCodeforces,
+  github: syncGithub,
+  beecrowd: syncBeecrowd,
+  hackerrank: syncHackerrank,
+  vjudge: syncVjudge,
+};
 
 async function runPlatform(platform, accounts, stats) {
   for (const acct of accounts) {
@@ -370,7 +656,10 @@ async function runPlatform(platform, accounts, stats) {
       const summary = await adapters[platform](acct);
       await supabase
         .from("platform_accounts")
-        .update({ last_synced_at: new Date().toISOString() })
+        .update({
+          verified: true,
+          last_synced_at: new Date().toISOString(),
+        })
         .eq("id", acct.id);
       stats.ok++;
       console.log(`ok   ${platform} ${acct.handle}: ${summary}`);
@@ -384,9 +673,10 @@ async function runPlatform(platform, accounts, stats) {
 
 const { data: accounts, error } = await supabase
   .from("platform_accounts")
-  .select("id, profile_id, platform, handle, profiles!inner(status)")
+  .select("id, profile_id, platform, handle, profiles!inner(status, role)")
   .in("platform", platforms)
   .eq("profiles.status", "approved")
+  .eq("profiles.role", "member")
   .order("id");
 
 if (error) {

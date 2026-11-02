@@ -27,9 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --omit=dev
 
-      - name: Sync Codeforces and GitHub
+      - name: Sync platform activity
         run: node scripts/sync/sync.mjs
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GH_SYNC_TOKEN: ${{ secrets.GH_SYNC_TOKEN }}
+          BEECROWD_TOKEN: ${{ secrets.BEECROWD_TOKEN }}
+          BEECROWD_COOKIE: ${{ secrets.BEECROWD_COOKIE }}
+          BEECROWD_PROXY_URL: ${{ secrets.BEECROWD_PROXY_URL }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          HACKERRANK_COOKIE: ${{ secrets.HACKERRANK_COOKIE }}
+          HACKERRANK_PROXY_URL: ${{ secrets.HACKERRANK_PROXY_URL }}

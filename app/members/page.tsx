@@ -83,7 +83,8 @@ async function MembersContent({
   const { data: overview, error } = await supabase.rpc(
     "staff_member_overview"
   );
-  const all = (overview ?? []) as Row[];
+  // Advisors and super admins are automatically hidden from the member directory
+  const all = ((overview ?? []) as Row[]).filter((r) => r.role === "member");
 
   let handleMatches = new Set<string>();
   if (q) {
@@ -290,13 +291,14 @@ async function MembersContent({
                   <td className="px-4 py-3 text-xs">
                     <div className="flex flex-wrap gap-1">
                       {(accountsByMember.get(r.id) ?? []).map((a) => (
-                        <span
+                        <Link
                           key={a.platform}
-                          title={a.platform}
-                          className="inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground"
+                          href={`/members/${r.id}?platform=${a.platform}`}
+                          title={`View ${a.platform} stats`}
+                          className="inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                         >
                           {shortPlatform[a.platform] ?? a.platform}
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </td>

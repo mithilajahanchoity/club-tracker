@@ -7,6 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AppNav } from "@/components/app-nav";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { MemberPlatformStats } from "@/components/member-platform-stats";
+import { getBeecrowdPublicDetails } from "@/lib/beecrowd";
+import { getCodeforcesPublicDetails } from "@/lib/codeforces";
+import { getVJudgePublicDetails } from "@/lib/vjudge";
+import { getGitHubPublicDetails } from "@/lib/github";
+import { SyncPlatformButton } from "@/components/sync-platform-button";
 import { changeMember } from "./actions";
 
 const platformLabels: Record<string, string> = {
@@ -27,6 +33,15 @@ const platformIcons: Record<string, string> = {
   github: "🐙",
 };
 
+const platformUrls: Record<string, (handle: string) => string> = {
+  codeforces: (h) => `https://codeforces.com/profile/${h}`,
+  hackerrank: (h) => `https://www.hackerrank.com/profile/${h}`,
+  beecrowd: (h) => `https://judge.beecrowd.com/en/profile/${h}`,
+  github: (h) => `https://github.com/${h}`,
+  codechef: (h) => `https://www.codechef.com/users/${h}`,
+  vjudge: (h) => `https://vjudge.net/user/${h}`,
+};
+
 const statusColors: Record<string, string> = {
   approved: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
   pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
@@ -34,32 +49,30 @@ const statusColors: Record<string, string> = {
   suspended: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
 };
 
-function getActivityWindow() {
-  const DAY = 86400000;
-  const BD = 6 * 3600000;
-  const now = Date.now();
-  const since = new Date(now + BD - 13 * DAY).toISOString().slice(0, 10);
-  const dayDates = Array.from({ length: 14 }, (_, i) =>
-    new Date(now + BD - (13 - i) * DAY).toISOString().slice(0, 10)
-  );
-  return { since, dayDates };
-}
-
 export default function MemberPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ platform?: string }>;
 }) {
   return (
     <Suspense>
-      <MemberContent params={params} />
+      <MemberContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
+async function MemberContent({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ platform?: string }>;
+}) {
   const { user, profile: me } = await requireStaff();
   const { id } = await params;
+  const { platform: initialPlatform } = await searchParams;
   if (!z.string().uuid().safeParse(id).success) notFound();
 
   const supabase = await createClient();
@@ -79,8 +92,6 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
       (r) => r.id === id
     )?.last_sign_in_at ?? null;
 
-  const { since, dayDates } = getActivityWindow();
-
   const [{ data: accounts }, { data: contests }, { data: activity }] =
     await Promise.all([
       supabase
@@ -93,13 +104,72 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
         .select("platform, contest_name, contest_date, rank, rating_change")
         .eq("profile_id", id)
         .order("contest_date", { ascending: false })
-        .limit(5),
+        .limit(100),
       supabase
         .from("activity_daily")
-        .select("activity_date, solved, commits")
+        .select("platform, activity_date, solved, commits, rating")
         .eq("profile_id", id)
-        .gte("activity_date", since),
+        .order("activity_date", { ascending: true }),
     ]);
+
+  // Fetch Beecrowd public details if member has a Beecrowd handle
+  const beecrowdAccount = (accounts ?? []).find((a) => a.platform === "beecrowd");
+  let beecrowdDetails = null;
+  if (beecrowdAccount?.handle) {
+    const beecrowdSolved = (activity ?? [])
+      .filter((a) => a.platform === "beecrowd")
+      .reduce((s, a) => s + (a.solved || 0), 0);
+    const beecrowdRating =
+      (activity ?? []).find((a) => a.platform === "beecrowd" && a.rating != null)?.rating ?? null;
+    beecrowdDetails = await getBeecrowdPublicDetails(
+      beecrowdAccount.handle,
+      beecrowdSolved,
+      beecrowdRating
+    );
+  }
+
+  // Fetch Codeforces public details if member has a Codeforces handle
+  const codeforcesAccount = (accounts ?? []).find((a) => a.platform === "codeforces");
+  let codeforcesDetails = null;
+  if (codeforcesAccount?.handle) {
+    const cfActivity = (activity ?? []).filter((a) => a.platform === "codeforces");
+    const cfContests = (contests ?? []).filter((c) => c.platform === "codeforces");
+    codeforcesDetails = await getCodeforcesPublicDetails(
+      codeforcesAccount.handle,
+      cfActivity,
+      cfContests
+    );
+  }
+
+  // Fetch VJudge public details if member has a VJudge handle
+  const vjudgeAccount = (accounts ?? []).find((a) => a.platform === "vjudge");
+  let vjudgeDetails = null;
+  if (vjudgeAccount?.handle) {
+    const vjudgeSolved = (activity ?? [])
+      .filter((a) => a.platform === "vjudge")
+      .reduce((s, a) => s + (a.solved || 0), 0);
+    const vjudgeRating =
+      (activity ?? []).find((a) => a.platform === "vjudge" && a.rating != null)?.rating ?? null;
+    vjudgeDetails = await getVJudgePublicDetails(
+      vjudgeAccount.handle,
+      member.email,
+      vjudgeSolved,
+      vjudgeRating
+    );
+  }
+
+  // Fetch GitHub public details if member has a GitHub handle
+  const githubAccount = (accounts ?? []).find((a) => a.platform === "github");
+  let githubDetails = null;
+  if (githubAccount?.handle) {
+    const ghActivity = (activity ?? [])
+      .filter((a) => a.platform === "github")
+      .map((a) => ({ activity_date: a.activity_date, commits: a.commits || 0 }));
+    githubDetails = await getGitHubPublicDetails(
+      githubAccount.handle,
+      ghActivity
+    );
+  }
 
   if (id !== user.id) {
     try {
@@ -112,21 +182,6 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
       // Logging must never break the page.
     }
   }
-
-  const byDay = new Map<string, { solved: number; commits: number }>();
-  for (const a of activity ?? []) {
-    const d = byDay.get(a.activity_date) ?? { solved: 0, commits: 0 };
-    d.solved += a.solved;
-    d.commits += a.commits;
-    byDay.set(a.activity_date, d);
-  }
-  const days = dayDates.map((date) => {
-    const d = byDay.get(date) ?? { solved: 0, commits: 0 };
-    return { date, ...d, total: d.solved + d.commits };
-  });
-  const max = Math.max(1, ...days.map((d) => d.total));
-  const totalSolved = days.reduce((s, d) => s + d.solved, 0);
-  const totalCommits = days.reduce((s, d) => s + d.commits, 0);
 
   const canManage =
     me.role === "super_admin" &&
@@ -191,9 +246,22 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                     <span className="font-medium">
                       {platformLabels[a.platform] ?? a.platform}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {a.handle}
-                    </span>
+                    {platformUrls[a.platform] ? (
+                      <a
+                        href={platformUrls[a.platform](a.handle)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                        title={`Open ${platformLabels[a.platform] ?? a.platform} profile`}
+                      >
+                        <span>{a.handle}</span>
+                        <span className="text-[10px] opacity-70">↗</span>
+                      </a>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {a.handle}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     {a.verified ? (
@@ -208,6 +276,11 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
                     <span className="text-muted-foreground">
                       synced {formatDateTime(a.last_synced_at).replace("Never", "never")}
                     </span>
+                    <SyncPlatformButton
+                      profileId={member.id}
+                      platform={a.platform}
+                      platformName={platformLabels[a.platform] ?? a.platform}
+                    />
                   </div>
                 </li>
               ))}
@@ -219,81 +292,18 @@ async function MemberContent({ params }: { params: Promise<{ id: string }> }) {
           )}
         </section>
 
-        {/* Activity chart */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <div className="mb-3">
-            <h2 className="font-semibold">Last 14 days</h2>
-            <p className="text-sm text-muted-foreground">
-              {totalSolved} problems solved &middot; {totalCommits} GitHub contributions
-            </p>
-          </div>
-          {totalSolved + totalCommits > 0 ? (
-            <>
-              <div className="flex h-24 items-end gap-1">
-                {days.map((d) => (
-                  <div
-                    key={d.date}
-                    className="group relative flex-1"
-                    style={{ height: "100%" }}
-                  >
-                    <div
-                      className="absolute bottom-0 w-full rounded-sm bg-primary/70 transition-all group-hover:bg-primary"
-                      style={{ height: `${Math.max(4, (d.total / max) * 100)}%` }}
-                      title={`${d.date}: ${d.solved} solved, ${d.commits} contributions`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>{days[0].date.slice(5)}</span>
-                <span>{days[6].date.slice(5)}</span>
-                <span>{days[13].date.slice(5)}</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border">
-              <p className="text-xs text-muted-foreground">
-                No synced activity yet. Data appears after the next sync run.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* Recent contests */}
-        <section className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="font-semibold">Recent contests</h2>
-          </div>
-          {contests && contests.length > 0 ? (
-            <ul className="divide-y divide-border text-sm">
-              {contests.map((c) => (
-                <li
-                  key={`${c.platform}-${c.contest_name}-${c.contest_date}`}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
-                >
-                  <div>
-                    <span className="font-medium">{c.contest_name}</span>
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      ({platformLabels[c.platform] ?? c.platform})
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDate(c.contest_date)}
-                    {c.rank != null && (
-                      <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5">
-                        rank {c.rank}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No contest data yet.
-            </p>
-          )}
-        </section>
+        {/* Comprehensive Platform Stats & 52-Week Activity Heatmap */}
+        <MemberPlatformStats
+          accounts={accounts ?? []}
+          activity={activity ?? []}
+          contests={contests ?? []}
+          initialPlatform={initialPlatform}
+          beecrowdDetails={beecrowdDetails}
+          codeforcesDetails={codeforcesDetails}
+          vjudgeDetails={vjudgeDetails}
+          githubDetails={githubDetails}
+          profileId={member.id}
+        />
 
         {/* Admin actions */}
         {canManage && (

@@ -65,7 +65,7 @@ async function LeaderboardContent({
 
   const supabase = await createClient();
 
-  const [{ data: board, error }, { data: settings }, { data: mine }] =
+  const [{ data: board, error }, { data: settings }, { data: mine }, { data: staffProfiles }] =
     await Promise.all([
       supabase.rpc("leaderboard", {
         p_days: period === "all" ? 3650 : Number(period),
@@ -76,9 +76,15 @@ async function LeaderboardContent({
         .select("show_on_leaderboard")
         .eq("id", user.id)
         .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["advisor", "super_admin"]),
     ]);
 
-  const all = (board ?? []) as Row[];
+  const staffIds = new Set((staffProfiles ?? []).map((s) => s.id));
+  // Advisors and super admins are automatically excluded from the leaderboard
+  const all = ((board ?? []) as Row[]).filter((r) => !staffIds.has(r.member_id));
   const batches = [...new Set(all.map((r) => r.member_batch).filter(Boolean))].sort();
 
   const metric = (r: Row) =>
@@ -140,7 +146,7 @@ async function LeaderboardContent({
         <div>
           <h1 className="text-2xl font-bold">Leaderboard</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Showing {periodLabel} · Scores from Codeforces, GitHub, and Beecrowd activity
+            Showing {periodLabel} · Scores from Codeforces, GitHub, Beecrowd, and HackerRank activity
           </p>
         </div>
 
@@ -254,14 +260,30 @@ async function LeaderboardContent({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {r.member_name}
+                      {profile.role !== "member" ? (
+                        <Link
+                          href={`/members/${r.member_id}`}
+                          className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
+                        >
+                          {r.member_name}
+                        </Link>
+                      ) : isMe ? (
+                        <Link
+                          href="/profile"
+                          className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
+                        >
+                          {r.member_name}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">{r.member_name}</span>
+                      )}
                       {r.member_batch && (
                         <span className="ml-1.5 text-xs text-muted-foreground">
                           Batch {r.member_batch}
                         </span>
                       )}
                       {isMe && (
-                        <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                        <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary font-normal">
                           you
                         </span>
                       )}
@@ -296,13 +318,13 @@ async function LeaderboardContent({
               <li>📅 {settings.points_per_active_day} pts per active day</li>
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Scores include Codeforces, GitHub, and Beecrowd activity. Days follow Bangladesh time.
+              Scores include Codeforces, GitHub, Beecrowd, and HackerRank activity. Days follow Bangladesh time.
             </p>
           </section>
         )}
 
-        {/* Visibility toggle */}
-        {!hidden && (
+        {/* Visibility toggle: only for regular members */}
+        {profile.role === "member" && !hidden && (
           <form action={setVisibility} className="text-xs text-muted-foreground">
             <input type="hidden" name="visibility" value="hide" />
             <button type="submit" className="underline underline-offset-2 hover:text-foreground transition-colors">

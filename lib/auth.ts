@@ -7,6 +7,7 @@ export type Profile = {
   email: string;
   student_id: string;
   batch: string;
+  contact: string;
   role: "member" | "advisor" | "super_admin";
   status: "pending" | "approved" | "rejected" | "suspended";
 };
@@ -20,7 +21,7 @@ export async function getCurrentProfile() {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, email, student_id, batch, role, status")
+    .select("id, full_name, email, student_id, batch, contact, role, status")
     .eq("id", user.id)
     .maybeSingle();
 
