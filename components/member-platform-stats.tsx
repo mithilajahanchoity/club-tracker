@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { formatDateTime, formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { BeecrowdProfileView } from "./beecrowd-profile-view";
 import { CodeforcesProfileView } from "./codeforces-profile-view";
 import { VJudgeProfileView } from "./vjudge-profile-view";
 import { GitHubProfileView } from "./github-profile-view";
 import { CodeChefProfileView } from "./codechef-profile-view";
 import { PlatformIcon } from "./platform-icon";
+import { ContestParticipationTable, type ContestItem } from "./contest-participation-table";
 import type { BeecrowdPublicProfile } from "@/lib/beecrowd";
 import type { CodeforcesPublicProfile } from "@/lib/codeforces";
 import type { VJudgePublicProfile } from "@/lib/vjudge";
@@ -135,11 +136,75 @@ export function MemberPlatformStats({
     return activity.filter((a) => a.platform === selectedPlatform);
   }, [activity, selectedPlatform]);
 
-  // Filter contests based on selected platform
-  const filteredContests = useMemo(() => {
-    if (selectedPlatform === "all") return contests;
-    return contests.filter((c) => c.platform === selectedPlatform);
-  }, [contests, selectedPlatform]);
+  // Combine all contests from all sources (DB contest_participation + live Codeforces / CodeChef histories)
+  const allUnifiedContests: ContestItem[] = useMemo(() => {
+    const list: ContestItem[] = [];
+    const seen = new Set<string>();
+
+    // 1. Add Codeforces live contest history if present
+    if (codeforcesDetails?.contestHistory) {
+      for (const c of codeforcesDetails.contestHistory) {
+        const key = `codeforces:${c.contestName}:${c.dateIso}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            contest_name: c.contestName,
+            platform: "codeforces",
+            contest_date: c.dateIso,
+            rank: c.rank,
+            rating_change: c.ratingChange,
+            url: `https://codeforces.com/contest/${c.contestId}`,
+          });
+        }
+      }
+    }
+
+    // 2. Add CodeChef live contest history if present
+    if (codechefDetails?.contestHistory) {
+      for (const c of codechefDetails.contestHistory) {
+        const key = `codechef:${c.name}:${c.dateIso}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            contest_name: c.name,
+            platform: "codechef",
+            contest_date: c.dateIso,
+            rank: c.rank,
+            rating_change: c.ratingChange,
+            url: c.code ? `https://www.codechef.com/${c.code}` : undefined,
+          });
+        }
+      }
+    }
+
+    // 3. Add all database contest records (HackerRank, VJudge, Codeforces, CodeChef, etc.)
+    for (const c of contests) {
+      const key = `${c.platform}:${c.contest_name}:${c.contest_date}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          contest_name: c.contest_name,
+          platform: c.platform,
+          contest_date: c.contest_date,
+          rank: c.rank,
+          rating_change: c.rating_change,
+        });
+      }
+    }
+
+    // Sort all contests strictly date-wise descending (newest first)
+    return list.sort((a, b) => {
+      const dateA = a.contest_date?.slice(0, 10) || "";
+      const dateB = b.contest_date?.slice(0, 10) || "";
+      return dateB.localeCompare(dateA);
+    });
+  }, [contests, codeforcesDetails, codechefDetails]);
+
+  // Filter unified contests based on selected platform
+  const filteredUnifiedContests = useMemo(() => {
+    if (selectedPlatform === "all") return allUnifiedContests;
+    return allUnifiedContests.filter((c) => c.platform === selectedPlatform);
+  }, [allUnifiedContests, selectedPlatform]);
 
   // Map activity by date
   const dateActivityMap = useMemo(() => {
@@ -371,13 +436,13 @@ export function MemberPlatformStats({
       {selectedPlatform === "beecrowd" && beecrowdDetails ? (
         <BeecrowdProfileView profile={beecrowdDetails} activity={activity} profileId={profileId} />
       ) : selectedPlatform === "codeforces" && codeforcesDetails ? (
-        <CodeforcesProfileView profile={codeforcesDetails} profileId={profileId} />
+        <CodeforcesProfileView profile={codeforcesDetails} profileId={profileId} contests={filteredUnifiedContests} />
       ) : selectedPlatform === "vjudge" && vjudgeDetails ? (
-        <VJudgeProfileView profile={vjudgeDetails} profileId={profileId} />
+        <VJudgeProfileView profile={vjudgeDetails} profileId={profileId} contests={filteredUnifiedContests} />
       ) : selectedPlatform === "github" && githubDetails ? (
         <GitHubProfileView profile={githubDetails} profileId={profileId} />
       ) : selectedPlatform === "codechef" && codechefDetails ? (
-        <CodeChefProfileView profile={codechefDetails} profileId={profileId} />
+        <CodeChefProfileView profile={codechefDetails} profileId={profileId} contests={filteredUnifiedContests} />
       ) : (
         <>
           {/* Active Platform Header & Link Banner (if specific platform selected) */}
@@ -589,71 +654,13 @@ export function MemberPlatformStats({
           </section>
 
           {/* Contest Participation for the Selected Platform */}
-          {(selectedPlatform === "all" ||
-            selectedPlatform === "codeforces" ||
-            selectedPlatform === "hackerrank") && (
-            <section className="rounded-xl border border-border bg-card p-5">
-              <div className="border-b border-border pb-3">
-                <h2 className="font-semibold text-base">
-                  {selectedPlatform === "all"
-                    ? "Contest Participation"
-                    : `${platformLabels[selectedPlatform]} Contests`}
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Official rated contests recorded for this member
-                </p>
-              </div>
-
-              {filteredContests.length > 0 ? (
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-border text-muted-foreground">
-                        <th className="pb-2 font-medium">Contest</th>
-                        <th className="pb-2 font-medium">Platform</th>
-                        <th className="pb-2 font-medium">Date</th>
-                        <th className="pb-2 font-medium text-right">Rank</th>
-                        <th className="pb-2 font-medium text-right">Rating Change</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredContests.map((c, i) => (
-                        <tr key={i} className="hover:bg-muted/30">
-                          <td className="py-2.5 font-medium">{c.contest_name}</td>
-                          <td className="py-2.5 capitalize text-muted-foreground">
-                            {c.platform}
-                          </td>
-                          <td className="py-2.5 text-muted-foreground">
-                            {formatDate(c.contest_date)}
-                          </td>
-                          <td className="py-2.5 text-right font-mono">
-                            {c.rank != null ? `#${c.rank}` : "—"}
-                          </td>
-                          <td className="py-2.5 text-right font-mono font-bold">
-                            {c.rating_change != null ? (
-                              <span
-                                className={
-                                  c.rating_change >= 0 ? "text-green-600" : "text-destructive"
-                                }
-                              >
-                                {c.rating_change >= 0 ? `+${c.rating_change}` : c.rating_change}
-                              </span>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="py-6 text-center text-xs text-muted-foreground">
-                  No rated contest participations recorded for {platformLabels[selectedPlatform]}.
-                </p>
-              )}
-            </section>
-          )}
+          <ContestParticipationTable
+            contests={filteredUnifiedContests}
+            title={selectedPlatform === "all" ? "Contest Participation" : `${platformLabels[selectedPlatform] ?? selectedPlatform} Contests`}
+            subtitle={selectedPlatform === "all" ? "Official rated contests recorded for this member across all platforms" : `Official rated contests recorded for this member on ${platformLabels[selectedPlatform] ?? selectedPlatform}`}
+            emptyMessage={`No rated contest participations recorded for ${platformLabels[selectedPlatform] ?? selectedPlatform}.`}
+            showPlatform={selectedPlatform === "all"}
+          />
         </>
       )}
 

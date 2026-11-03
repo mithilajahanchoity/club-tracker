@@ -2,10 +2,12 @@
 
 import { useState, useMemo } from "react";
 import type { CodeforcesPublicProfile, CodeforcesContestPoint } from "@/lib/codeforces";
+import { ContestParticipationTable, type ContestItem } from "./contest-participation-table";
 
 interface CodeforcesProfileViewProps {
   profile: CodeforcesPublicProfile;
   profileId?: string;
+  contests?: ContestItem[];
 }
 
 const monthsShort = [
@@ -13,7 +15,7 @@ const monthsShort = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
-export function CodeforcesProfileView({ profile }: CodeforcesProfileViewProps) {
+export function CodeforcesProfileView({ profile, contests: propContests }: CodeforcesProfileViewProps) {
   const [filterType, setFilterType] = useState<"rated" | "all">("rated");
   const [activityFilter, setActivityFilter] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("rolling");
@@ -112,6 +114,18 @@ export function CodeforcesProfileView({ profile }: CodeforcesProfileViewProps) {
   const contests = useMemo(() => {
     return profile.contestHistory;
   }, [profile.contestHistory]);
+
+  const cfContestItems: ContestItem[] = useMemo(() => {
+    if (propContests && propContests.length > 0) return propContests;
+    return profile.contestHistory.map((c) => ({
+      contest_name: c.contestName,
+      platform: "codeforces",
+      contest_date: c.dateIso,
+      rank: c.rank,
+      rating_change: c.ratingChange,
+      url: `https://codeforces.com/contest/${c.contestId}`,
+    }));
+  }, [profile.contestHistory, propContests]);
 
   // SVG Chart Dimensions & Scale
   const chartHeight = 240;
@@ -510,6 +524,14 @@ export function CodeforcesProfileView({ profile }: CodeforcesProfileViewProps) {
           </div>
         </div>
       </section>
+      {/* Codeforces Contest Participation Table */}
+      <ContestParticipationTable
+        contests={cfContestItems}
+        title="Codeforces Contest Participation"
+        subtitle="Official rated contests recorded on Codeforces for this member"
+        emptyMessage="No rated contest participations recorded for Codeforces."
+        showPlatform={true}
+      />
     </div>
   );
 }

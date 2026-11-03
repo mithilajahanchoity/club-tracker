@@ -2,10 +2,12 @@
 
 import { useState, useMemo } from "react";
 import type { VJudgePublicProfile } from "@/lib/vjudge";
+import { ContestParticipationTable, type ContestItem } from "./contest-participation-table";
 
 interface VJudgeProfileViewProps {
   profile: VJudgePublicProfile;
   profileId?: string;
+  contests?: ContestItem[];
 }
 
 const vjudgeMonths = [
@@ -13,7 +15,7 @@ const vjudgeMonths = [
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
 ];
 
-export function VJudgeProfileView({ profile }: VJudgeProfileViewProps) {
+export function VJudgeProfileView({ profile, contests: propContests }: VJudgeProfileViewProps) {
   // Available years from yearlyCounts or activityMap
   const yearsList = useMemo(() => {
     const list = Object.keys(profile.yearlyCounts).sort((a, b) => b.localeCompare(a));
@@ -322,6 +324,14 @@ export function VJudgeProfileView({ profile }: VJudgeProfileViewProps) {
           </div>
         </div>
       </section>
+      {/* VJudge Contest Participation Table */}
+      <ContestParticipationTable
+        contests={propContests || []}
+        title="VJudge Contest Participation"
+        subtitle="Contest participations recorded on VJudge for this member"
+        emptyMessage="No contest participations recorded for VJudge."
+        showPlatform={true}
+      />
     </div>
   );
 }
