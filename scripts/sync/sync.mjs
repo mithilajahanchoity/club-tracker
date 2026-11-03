@@ -34,7 +34,7 @@ const USER_AGENT = "club-tracker-sync (university programming club project)";
 
 const onlyArg = process.argv.find((a) => a.startsWith("--only="));
 const only = onlyArg ? onlyArg.split("=")[1] : null;
-const platforms = ["codeforces", "github", "beecrowd", "hackerrank", "vjudge"].filter((p) => !only || p === only);
+const platforms = ["codeforces", "github", "beecrowd", "hackerrank", "vjudge", "codechef"].filter((p) => !only || p === only);
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
@@ -640,6 +640,155 @@ async function syncVjudge(acct) {
   return `${totalSolved} total solved problems, rank: ${rank ? "#" + rank : "N/A"}`;
 }
 
+// ---------- CodeChef ----------
+async function syncCodechef(acct) {
+  const clean = acct.handle.trim();
+  const url = `https://www.codechef.com/users/${encodeURIComponent(clean)}`;
+
+  let html = "";
+  if (FIRECRAWL_KEY) {
+    try {
+      const fcRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_KEY.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          formats: ["rawHtml", "html"],
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+      if (fcRes.ok) {
+        const fcData = await fcRes.json().catch(() => null);
+        html = fcData?.data?.rawHtml || fcData?.data?.html || "";
+      }
+    } catch {}
+  }
+
+  if (!html) {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.status === 404) {
+      throw new Error(`CodeChef user '${clean}' not found.`);
+    }
+    if (!res.ok) {
+      throw new Error(`CodeChef HTTP ${res.status}: ${res.statusText}`);
+    }
+    html = await res.text();
+  }
+
+  if (!html || html.includes("<title>Page not found")) {
+    throw new Error(`CodeChef user '${clean}' not found.`);
+  }
+
+  // Parse rating
+  const ratingMatch = html.match(/<div class="rating-number">([^<]+)<\/div>/i);
+  let rating = null;
+  if (ratingMatch) {
+    const rRaw = ratingMatch[1].trim();
+    if (/^\d+$/.test(rRaw)) rating = parseInt(rRaw, 10);
+  }
+
+  // Parse stars
+  const starsMatch = html.match(/<span[^>]*class=['"]rating['"][^>]*>(\d+)(?:&#9733;|★)<\/span>/i);
+  const stars = starsMatch ? `${starsMatch[1]}★` : null;
+
+  // Parse solved
+  const solvedMatch = html.match(/Total Problems Solved:\s*(\d+)/i);
+  const totalSolved = solvedMatch ? parseInt(solvedMatch[1], 10) : 0;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const today = localDate(nowSec);
+
+  // Daily submissions heatmap
+  const heatMatch = html.match(/var\s+userDailySubmissionsStats\s*=\s*(\[[\s\S]*?\]);/);
+  const dailyRows = [];
+  if (heatMatch) {
+    try {
+      const rawHeat = JSON.parse(heatMatch[1]);
+      for (const item of rawHeat) {
+        if (item.date && item.value > 0) {
+          dailyRows.push({
+            profile_id: acct.profile_id,
+            platform: "codechef",
+            activity_date: item.date,
+            solved: item.value,
+          });
+        }
+      }
+    } catch {}
+  }
+
+  if (dailyRows.length === 0 && totalSolved > 0) {
+    dailyRows.push({
+      profile_id: acct.profile_id,
+      platform: "codechef",
+      activity_date: today,
+      solved: totalSolved,
+    });
+  }
+
+  if (dailyRows.length > 0) {
+    await upsert(dailyRows, "profile_id,platform,activity_date");
+  }
+
+  // Rating for today
+  if (rating != null) {
+    await upsert(
+      [
+        {
+          profile_id: acct.profile_id,
+          platform: "codechef",
+          activity_date: today,
+          rating,
+        },
+      ],
+      "profile_id,platform,activity_date"
+    );
+  }
+
+  // Contests
+  const contestMatch = html.match(/var\s+all_rating\s*=\s*(\[[\s\S]*?\]);/);
+  let contestCount = 0;
+  if (contestMatch) {
+    try {
+      const rawContests = JSON.parse(contestMatch[1]);
+      contestCount = rawContests.length;
+      let prevRating = 0;
+      const contestRows = [];
+      for (let i = 0; i < rawContests.length; i++) {
+        const c = rawContests[i];
+        const rNum = typeof c.rating === "number" ? c.rating : parseInt(String(c.rating), 10) || 0;
+        const rankNum = typeof c.rank === "number" ? c.rank : parseInt(String(c.rank), 10) || 0;
+        const dateIso = (c.end_date || "").slice(0, 10);
+        const change = i === 0 ? 0 : rNum - prevRating;
+        prevRating = rNum;
+        contestRows.push({
+          profile_id: acct.profile_id,
+          platform: "codechef",
+          contest_name: String(c.name || c.code || "CodeChef Contest").slice(0, 200),
+          contest_date: dateIso || today,
+          rank: rankNum || null,
+          rating_change: change || null,
+        });
+      }
+      if (contestRows.length > 0) {
+        await upsert(contestRows, "profile_id,platform,contest_name,contest_date");
+      }
+    } catch {}
+  }
+
+  return `${totalSolved} solved, rating: ${rating ?? "unrated"}${stars ? ` (${stars})` : ""}, ${contestCount} contests`;
+}
+
 // ---------- Runner ----------
 
 const adapters = {
@@ -648,6 +797,7 @@ const adapters = {
   beecrowd: syncBeecrowd,
   hackerrank: syncHackerrank,
   vjudge: syncVjudge,
+  codechef: syncCodechef,
 };
 
 async function runPlatform(platform, accounts, stats) {
