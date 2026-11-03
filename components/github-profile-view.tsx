@@ -104,14 +104,14 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
     return { weeks: weeksArr, monthHeaders: headers };
   }, [profile.activityMap, selectedYear]);
 
-  // Color Scale for GitHub Contribution Squares (Exact GitHub dark theme colors)
+  // Color Scale for GitHub Contribution Squares (Adaptive light & dark theme)
   const getGitHubCellColor = (count: number, isFuture: boolean) => {
     if (isFuture) return "bg-transparent opacity-0 pointer-events-none";
-    if (count === 0) return "bg-[#161b22] border border-[#21262d]";
-    if (count <= 2) return "bg-[#0e4429] border border-[#006d32]/40";
-    if (count <= 5) return "bg-[#006d32] border border-[#26a641]/50";
-    if (count <= 9) return "bg-[#26a641] border border-[#39d353]/60";
-    return "bg-[#39d353] border border-[#39d353]"; // Bright lime green
+    if (count === 0) return "bg-[#ebedf0] border border-black/5 dark:bg-[#161b22] dark:border-[#21262d]";
+    if (count <= 2) return "bg-[#9be9a8] border border-[#006d32]/20 dark:bg-[#0e4429] dark:border-[#006d32]/40";
+    if (count <= 5) return "bg-[#40c463] border border-[#26a641]/30 dark:bg-[#006d32] dark:border-[#26a641]/50";
+    if (count <= 9) return "bg-[#30a14e] border border-[#39d353]/40 dark:bg-[#26a641] dark:border-[#39d353]/60";
+    return "bg-[#216e39] border border-[#216e39] dark:bg-[#39d353] dark:border-[#39d353]"; // GitHub max green
   };
 
   const currentYearContributions =
@@ -159,12 +159,12 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
 
             {/* Heatmap Box + Right Year Sidebar */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-              {/* Main Heatmap Container (Dark GitHub Theme) */}
-              <div className="flex-1 rounded-xl border border-[#30363d] bg-[#0d1117] p-4 text-[#c9d1d9] shadow-sm md:p-5">
+              {/* Main Heatmap Container (Adaptive light & dark theme) */}
+              <div className="flex-1 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm md:p-5 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-[#c9d1d9]">
                 <div className="relative overflow-x-auto pb-2">
                   <div className="min-w-[760px] select-none">
                     {/* Month Headers */}
-                    <div className="flex text-[11px] font-medium text-[#8b949e] mb-1.5 pl-9">
+                    <div className="flex text-[11px] font-medium text-muted-foreground dark:text-[#8b949e] mb-1.5 pl-9">
                       {weeks.map((_, wIdx) => {
                         const header = monthHeaders.find((m) => m.weekIndex === wIdx);
                         return (
@@ -178,7 +178,7 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
                     {/* Days Column + 52 Weeks */}
                     <div className="flex items-start">
                       {/* Day Labels on Left (Mon, Wed, Fri like in screenshot) */}
-                      <div className="flex flex-col justify-between text-[10px] font-medium text-[#8b949e] pr-2 w-9 h-[95px] py-0.5">
+                      <div className="flex flex-col justify-between text-[10px] font-medium text-muted-foreground dark:text-[#8b949e] pr-2 w-9 h-[95px] py-0.5">
                         <span>Mon</span>
                         <span className="text-transparent select-none">Tue</span>
                         <span>Wed</span>
@@ -220,7 +220,7 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
                     {/* Cell Tooltip */}
                     {hoveredCell && (
                       <div
-                        className="fixed z-50 rounded bg-[#1f242c] px-2.5 py-1 text-xs font-medium text-white shadow-lg pointer-events-none -translate-x-1/2 -translate-y-full mb-1 border border-[#30363d]"
+                        className="fixed z-50 rounded bg-popover px-2.5 py-1 text-xs font-medium text-popover-foreground shadow-lg pointer-events-none -translate-x-1/2 -translate-y-full mb-1 border border-border dark:bg-[#1f242c] dark:text-white dark:border-[#30363d]"
                         style={{
                           left: `${hoveredCell.x + 6}px`,
                           top: `${hoveredCell.y - 4}px`,
@@ -235,12 +235,12 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
                 </div>
 
                 {/* Bottom Footer inside Heatmap Box */}
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#21262d] pt-3 text-xs text-[#8b949e]">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground dark:border-[#21262d] dark:text-[#8b949e]">
                   <a
                     href="https://docs.github.com/articles/why-are-my-contributions-not-showing-up-on-my-profile"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-[#58a6ff] hover:underline transition-colors"
+                    className="hover:text-foreground dark:hover:text-[#58a6ff] hover:underline transition-colors"
                   >
                     Learn how we count contributions
                   </a>
@@ -248,11 +248,11 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
                   {/* Legend: Less -> More */}
                   <div className="flex items-center gap-1.5 text-[11px]">
                     <span>Less</span>
-                    <span className="h-2.5 w-2.5 rounded-xs bg-[#161b22] border border-[#21262d]" />
-                    <span className="h-2.5 w-2.5 rounded-xs bg-[#0e4429]" />
-                    <span className="h-2.5 w-2.5 rounded-xs bg-[#006d32]" />
-                    <span className="h-2.5 w-2.5 rounded-xs bg-[#26a641]" />
-                    <span className="h-2.5 w-2.5 rounded-xs bg-[#39d353]" />
+                    <span className="h-2.5 w-2.5 rounded-xs bg-[#ebedf0] border border-black/5 dark:bg-[#161b22] dark:border-[#21262d]" />
+                    <span className="h-2.5 w-2.5 rounded-xs bg-[#9be9a8] dark:bg-[#0e4429]" />
+                    <span className="h-2.5 w-2.5 rounded-xs bg-[#40c463] dark:bg-[#006d32]" />
+                    <span className="h-2.5 w-2.5 rounded-xs bg-[#30a14e] dark:bg-[#26a641]" />
+                    <span className="h-2.5 w-2.5 rounded-xs bg-[#216e39] dark:bg-[#39d353]" />
                     <span>More</span>
                   </div>
                 </div>
@@ -269,8 +269,8 @@ export function GitHubProfileView({ profile }: GitHubProfileViewProps) {
                       onClick={() => setSelectedYear(yr)}
                       className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all text-center ${
                         isActive
-                          ? "bg-[#1f6feb] text-white shadow-xs"
-                          : "text-[#8b949e] hover:bg-[#21262d] hover:text-[#c9d1d9] dark:hover:bg-zinc-800"
+                          ? "bg-blue-600 text-white shadow-xs dark:bg-[#1f6feb]"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground dark:text-[#8b949e] dark:hover:bg-[#21262d] dark:hover:text-[#c9d1d9]"
                       }`}
                     >
                       {yr}
