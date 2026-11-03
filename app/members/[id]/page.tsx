@@ -12,6 +12,7 @@ import { getBeecrowdPublicDetails } from "@/lib/beecrowd";
 import { getCodeforcesPublicDetails } from "@/lib/codeforces";
 import { getVJudgePublicDetails } from "@/lib/vjudge";
 import { getGitHubPublicDetails } from "@/lib/github";
+import { getCodeChefPublicDetails } from "@/lib/codechef";
 import { SyncPlatformButton } from "@/components/sync-platform-button";
 import { PlatformIcon } from "@/components/platform-icon";
 import { changeMember } from "./actions";
@@ -172,6 +173,19 @@ async function MemberContent({
     );
   }
 
+  // Fetch CodeChef public details if member has a CodeChef handle
+  const codechefAccount = (accounts ?? []).find((a) => a.platform === "codechef");
+  let codechefDetails = null;
+  if (codechefAccount?.handle) {
+    const ccActivity = (activity ?? []).filter((a) => a.platform === "codechef");
+    const ccContests = (contests ?? []).filter((c) => c.platform === "codechef");
+    codechefDetails = await getCodeChefPublicDetails(
+      codechefAccount.handle,
+      ccActivity,
+      ccContests
+    );
+  }
+
   if (id !== user.id) {
     try {
       await createAdminClient().from("audit_logs").insert({
@@ -307,6 +321,7 @@ async function MemberContent({
           codeforcesDetails={codeforcesDetails}
           vjudgeDetails={vjudgeDetails}
           githubDetails={githubDetails}
+          codechefDetails={codechefDetails}
           profileId={member.id}
         />
 

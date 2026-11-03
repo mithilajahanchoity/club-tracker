@@ -6,11 +6,13 @@ import { BeecrowdProfileView } from "./beecrowd-profile-view";
 import { CodeforcesProfileView } from "./codeforces-profile-view";
 import { VJudgeProfileView } from "./vjudge-profile-view";
 import { GitHubProfileView } from "./github-profile-view";
+import { CodeChefProfileView } from "./codechef-profile-view";
 import { PlatformIcon } from "./platform-icon";
 import type { BeecrowdPublicProfile } from "@/lib/beecrowd";
 import type { CodeforcesPublicProfile } from "@/lib/codeforces";
 import type { VJudgePublicProfile } from "@/lib/vjudge";
 import type { GitHubPublicProfile } from "@/lib/github";
+import type { CodeChefPublicProfile } from "@/lib/codechef";
 
 export type PlatformAccount = {
   platform: string;
@@ -44,6 +46,7 @@ interface MemberPlatformStatsProps {
   codeforcesDetails?: CodeforcesPublicProfile | null;
   vjudgeDetails?: VJudgePublicProfile | null;
   githubDetails?: GitHubPublicProfile | null;
+  codechefDetails?: CodeChefPublicProfile | null;
   profileId?: string;
 }
 
@@ -100,6 +103,7 @@ export function MemberPlatformStats({
   codeforcesDetails,
   vjudgeDetails,
   githubDetails,
+  codechefDetails,
   profileId,
 }: MemberPlatformStatsProps) {
   const [selectedPlatform, setSelectedPlatform] = useState<string>(initialPlatform);
@@ -372,6 +376,8 @@ export function MemberPlatformStats({
         <VJudgeProfileView profile={vjudgeDetails} profileId={profileId} />
       ) : selectedPlatform === "github" && githubDetails ? (
         <GitHubProfileView profile={githubDetails} profileId={profileId} />
+      ) : selectedPlatform === "codechef" && codechefDetails ? (
+        <CodeChefProfileView profile={codechefDetails} profileId={profileId} />
       ) : (
         <>
           {/* Active Platform Header & Link Banner (if specific platform selected) */}

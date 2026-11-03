@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCodeChefPublicDetails } from "@/lib/codechef";
 
 const WINDOW_DAYS = 30;
 const TZ_OFFSET_HOURS = 6; // Bangladesh time (UTC+6)
@@ -536,7 +537,91 @@ async function syncVJudge(admin: ReturnType<typeof createAdminClient>, profileId
   return `VJudge: ${totalSolved} total solved problems, rank: ${rank ? "#" + rank : "N/A"}.`;
 }
 
-// ----------------- CodeChef -----------------
+
+// ----------------- CodeChef Sync -----------------
+async function syncCodeChef(admin: ReturnType<typeof createAdminClient>, profileId: string, handle: string) {
+  const cleanHandle = handle.trim();
+  const profile = await getCodeChefPublicDetails(cleanHandle);
+
+  if (!profile) {
+    throw new Error(`CodeChef user '${cleanHandle}' not found or unreachable.`);
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const today = localDate(nowSec);
+
+  // 1. Daily solves from activityMap (heatmap data)
+  const dailyRows: Array<{
+    profile_id: string;
+    platform: string;
+    activity_date: string;
+    solved: number;
+    rating?: number | null;
+  }> = [];
+
+  for (const [activity_date, solved] of Object.entries(profile.activityMap)) {
+    if (solved > 0) {
+      dailyRows.push({
+        profile_id: profileId,
+        platform: "codechef",
+        activity_date,
+        solved,
+      });
+    }
+  }
+
+  // If no heatmap daily data was returned but totalSolved > 0, record total for today
+  if (dailyRows.length === 0 && profile.totalSolved > 0) {
+    dailyRows.push({
+      profile_id: profileId,
+      platform: "codechef",
+      activity_date: today,
+      solved: profile.totalSolved,
+    });
+  }
+
+  if (dailyRows.length > 0) {
+    await admin.from("activity_daily").upsert(dailyRows, {
+      onConflict: "profile_id,platform,activity_date",
+    });
+  }
+
+  // 2. Current rating
+  if (profile.rating != null) {
+    await admin.from("activity_daily").upsert(
+      [
+        {
+          profile_id: profileId,
+          platform: "codechef",
+          activity_date: today,
+          rating: profile.rating,
+        },
+      ],
+      { onConflict: "profile_id,platform,activity_date" }
+    );
+  }
+
+  // 3. Contest participations
+  if (profile.contestHistory.length > 0) {
+    const contestRows = profile.contestHistory.map((c) => ({
+      profile_id: profileId,
+      platform: "codechef",
+      contest_name: String(c.name).slice(0, 200),
+      contest_date: c.dateIso || today,
+      rank: c.rank || null,
+      rating_change: c.ratingChange || null,
+    }));
+
+    await admin.from("contest_participation").upsert(contestRows, {
+      onConflict: "profile_id,platform,contest_name,contest_date",
+    });
+  }
+
+  const starsBadge = profile.stars ? ` (${profile.stars})` : "";
+  const ratingText = profile.rating ? `rating: ${profile.rating}${starsBadge}` : "unrated";
+  return `CodeChef: ${profile.totalSolved} solved, ${ratingText}, ${profile.contestHistory.length} contests synced.`;
+}
+
 async function syncGenericPlatform(platform: string, handle: string) {
   const clean = handle.trim();
   const url = `https://www.codechef.com/users/${encodeURIComponent(clean)}`;
@@ -584,6 +669,8 @@ export async function syncSingleAccount(profileId: string, platform: string): Pr
       summary = await syncGitHub(admin, profileId, acct.handle);
     } else if (platform === "vjudge") {
       summary = await syncVJudge(admin, profileId, acct.handle);
+    } else if (platform === "codechef") {
+      summary = await syncCodeChef(admin, profileId, acct.handle);
     } else {
       summary = await syncGenericPlatform(platform, acct.handle);
     }
