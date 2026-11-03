@@ -89,27 +89,27 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
     return { weeks: weeksArr, monthHeaders: headers };
   }, [profile.activityMap, selectedYear]);
 
-  // VJudge Green Color Scale
+  // VJudge Green Color Scale (Adaptive light & dark theme)
   const getVJudgeCellColor = (count: number, isCurrentYear: boolean) => {
     if (!isCurrentYear) return "bg-transparent opacity-0 pointer-events-none";
-    if (count === 0) return "bg-[#252c37] border border-[#2f3946]";
-    if (count <= 2) return "bg-[#18632e]"; // Darker green
-    if (count <= 5) return "bg-[#218838]"; // Medium green
-    if (count <= 10) return "bg-[#2ecc71]"; // Vibrant green
-    return "bg-[#38d39f]"; // Brightest green (e.g. 15 AC on Monday Apr 1)
+    if (count === 0) return "bg-muted/40 border border-border/40 dark:bg-[#252c37] dark:border-[#2f3946]";
+    if (count <= 2) return "bg-emerald-300 dark:bg-[#18632e]"; // Darker green in dark mode, soft green in light mode
+    if (count <= 5) return "bg-emerald-500 dark:bg-[#218838]"; // Medium green
+    if (count <= 10) return "bg-emerald-600 dark:bg-[#2ecc71]"; // Vibrant green
+    return "bg-emerald-400 dark:bg-[#38d39f]"; // Brightest green
   };
 
   return (
     <div className="space-y-6">
       {/* =========================================================================
-          TOP CARD: VJudge User Profile Banner (Matches Screenshot Top Panel)
+          TOP CARD: VJudge User Profile Banner (Adaptive light & dark theme)
          ========================================================================= */}
-      <section className="rounded-2xl border border-[#2d3748] bg-[#181d24] p-5 md:p-6 text-zinc-200 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-5 md:p-6 text-card-foreground shadow-sm dark:border-[#2d3748] dark:bg-[#181d24] dark:text-zinc-200">
         <div className="flex flex-wrap items-start justify-between gap-5">
           {/* Left: Avatar + Handle + Name */}
           <div className="flex items-center gap-4">
             {/* Square 3D Button-Style Avatar (Matches Screenshot Sunglasses Avatar) */}
-            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-500/70 bg-[#2b3340] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_2px_4px_rgba(0,0,0,0.4)]">
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/60 shadow-sm dark:border-zinc-500/70 dark:bg-[#2b3340] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_2px_4px_rgba(0,0,0,0.4)]">
               {profile.avatarUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
@@ -127,20 +127,20 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
             {/* Handle & Name */}
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground dark:text-white">
                   {profile.handle}
                 </h2>
                 <a
                   href={`https://vjudge.net/user/${profile.handle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-zinc-400 transition-colors hover:text-white"
+                  className="text-muted-foreground transition-colors hover:text-foreground dark:text-zinc-400 dark:hover:text-white"
                   title="Open VJudge profile"
                 >
                   <span className="text-xs">↗</span>
                 </a>
               </div>
-              <p className="text-sm font-medium text-zinc-400 mt-0.5">{profile.name}</p>
+              <p className="text-sm font-medium text-muted-foreground dark:text-zinc-400 mt-0.5">{profile.name}</p>
             </div>
           </div>
 
@@ -148,31 +148,31 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
           <div className="flex flex-col items-start sm:items-end">
             <div className="flex flex-wrap items-center gap-2.5">
               {/* 1. Rank Card (Amber) */}
-              <div className="min-w-[85px] rounded-xl border border-[#3b4758] bg-[#222933]/90 px-4 py-2 text-center shadow-xs">
-                <p className="text-lg font-bold text-[#f59e0b] leading-tight">{profile.rank}</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Rank</p>
+              <div className="min-w-[85px] rounded-xl border border-border bg-muted/40 px-4 py-2 text-center shadow-xs dark:border-[#3b4758] dark:bg-[#222933]/90">
+                <p className="text-lg font-bold text-amber-500 dark:text-[#f59e0b] leading-tight">{profile.rank}</p>
+                <p className="text-[11px] text-muted-foreground dark:text-zinc-400 mt-0.5">Rank</p>
               </div>
 
               {/* 2. Solved Card (Cyan / Blue) */}
-              <div className="min-w-[85px] rounded-xl border border-[#3b4758] bg-[#222933]/90 px-4 py-2 text-center shadow-xs">
-                <p className="text-lg font-bold text-[#38bdf8] leading-tight">{profile.solvedCount}</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Solved</p>
+              <div className="min-w-[85px] rounded-xl border border-border bg-muted/40 px-4 py-2 text-center shadow-xs dark:border-[#3b4758] dark:bg-[#222933]/90">
+                <p className="text-lg font-bold text-sky-600 dark:text-[#38bdf8] leading-tight">{profile.solvedCount}</p>
+                <p className="text-[11px] text-muted-foreground dark:text-zinc-400 mt-0.5">Solved</p>
               </div>
 
               {/* 3. Attempted Card (Lavender / Soft Purple) */}
-              <div className="min-w-[85px] rounded-xl border border-[#3b4758] bg-[#222933]/90 px-4 py-2 text-center shadow-xs">
-                <p className="text-lg font-bold text-[#a5b4fc] leading-tight">{profile.attemptedCount}</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Attempted</p>
+              <div className="min-w-[85px] rounded-xl border border-border bg-muted/40 px-4 py-2 text-center shadow-xs dark:border-[#3b4758] dark:bg-[#222933]/90">
+                <p className="text-lg font-bold text-indigo-500 dark:text-[#a5b4fc] leading-tight">{profile.attemptedCount}</p>
+                <p className="text-[11px] text-muted-foreground dark:text-zinc-400 mt-0.5">Attempted</p>
               </div>
             </div>
 
             {/* Sub-row links and velocity counters */}
-            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-              <span className="cursor-pointer hover:text-zinc-200 transition-colors">
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground dark:text-zinc-400">
+              <span className="cursor-pointer hover:text-foreground dark:hover:text-zinc-200 transition-colors">
                 Export AC / All
               </span>
               <span>&middot;</span>
-              <span className="cursor-pointer hover:text-zinc-200 transition-colors">
+              <span className="cursor-pointer hover:text-foreground dark:hover:text-zinc-200 transition-colors">
                 Show details
               </span>
               <span>&middot;</span>
@@ -186,40 +186,40 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
         </div>
 
         {/* Bottom Fact Strip (Register, Last seen, School, Email) */}
-        <div className="mt-6 border-t border-[#2d3748] pt-4">
+        <div className="mt-6 border-t border-border dark:border-[#2d3748] pt-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-xs">
             {/* Register */}
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
                 REGISTER
               </p>
-              <p className="mt-0.5 font-medium text-zinc-200">{profile.registerTime}</p>
+              <p className="mt-0.5 font-medium text-foreground dark:text-zinc-200">{profile.registerTime}</p>
             </div>
 
             {/* Last Seen */}
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
                 LAST SEEN
               </p>
-              <p className="mt-0.5 font-medium text-zinc-200">{profile.lastSeen}</p>
+              <p className="mt-0.5 font-medium text-foreground dark:text-zinc-200">{profile.lastSeen}</p>
             </div>
 
             {/* School */}
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
                 SCHOOL
               </p>
-              <p className="mt-0.5 font-medium text-zinc-200 truncate" title={profile.school}>
+              <p className="mt-0.5 font-medium text-foreground dark:text-zinc-200 truncate" title={profile.school}>
                 {profile.school}
               </p>
             </div>
 
             {/* Email */}
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
                 EMAIL
               </p>
-              <p className="mt-0.5 font-medium text-zinc-200 flex items-center gap-1.5 truncate">
+              <p className="mt-0.5 font-medium text-foreground dark:text-zinc-200 flex items-center gap-1.5 truncate">
                 <span className="truncate">{profile.email || "—"}</span>
                 {profile.email && <span className="text-emerald-500 font-bold">✔</span>}
               </p>
@@ -229,18 +229,18 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
       </section>
 
       {/* =========================================================================
-          BOTTOM CARD: VJudge Activity Calendar Heatmap (Matches Screenshot Bottom Panel)
+          BOTTOM CARD: VJudge Activity Calendar Heatmap (Adaptive light & dark theme)
          ========================================================================= */}
-      <section className="rounded-2xl border border-[#2d3748] bg-[#181d24] p-5 md:p-6 text-zinc-200 shadow-sm space-y-5">
+      <section className="rounded-2xl border border-border bg-card p-5 md:p-6 text-card-foreground shadow-sm dark:border-[#2d3748] dark:bg-[#181d24] dark:text-zinc-200 space-y-5">
         {/* Header Row: Title & Year Dropdown */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-white">Activity</h3>
+          <h3 className="text-base font-semibold text-foreground dark:text-white">Activity</h3>
 
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
             aria-label="Select year for VJudge activity"
-            className="rounded-lg border border-[#3b4758] bg-[#222933] px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-xs outline-none transition-colors hover:border-[#4d5c70]"
+            className="rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-xs outline-none transition-colors hover:border-ring dark:border-[#3b4758] dark:bg-[#222933] dark:text-zinc-200"
           >
             {yearsList.map((yr) => (
               <option key={yr} value={yr}>
@@ -254,7 +254,7 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
         <div className="relative overflow-x-auto pb-2">
           <div className="min-w-[760px] select-none">
             {/* Month Labels along top (Uppercase: JAN, FEB, MAR, APR, etc.) */}
-            <div className="flex text-[11px] font-medium text-zinc-400 mb-1.5 pl-10">
+            <div className="flex text-[11px] font-medium text-muted-foreground dark:text-zinc-400 mb-1.5 pl-10">
               {weeks.map((_, wIdx) => {
                 const header = monthHeaders.find((m) => m.weekIndex === wIdx);
                 return (
@@ -268,7 +268,7 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
             {/* Days Column + 52 Weeks */}
             <div className="flex items-start">
               {/* Day Labels on Left (MON, WED, FRI, SUN matching VJudge) */}
-              <div className="flex flex-col justify-between text-[10px] font-semibold text-zinc-400 pr-2 w-10 h-[98px] py-0.5">
+              <div className="flex flex-col justify-between text-[10px] font-semibold text-muted-foreground dark:text-zinc-400 pr-2 w-10 h-[98px] py-0.5">
                 <span>MON</span>
                 <span className="text-transparent select-none">TUE</span>
                 <span>WED</span>
@@ -310,7 +310,7 @@ export function VJudgeProfileView({ profile, contests: propContests }: VJudgePro
             {/* Cell Tooltip */}
             {hoveredCell && (
               <div
-                className="fixed z-50 rounded bg-zinc-950 px-2.5 py-1 text-xs font-medium text-white shadow-lg pointer-events-none -translate-x-1/2 -translate-y-full mb-1 border border-zinc-700"
+                className="fixed z-50 rounded bg-popover px-2.5 py-1 text-xs font-medium text-popover-foreground shadow-lg pointer-events-none -translate-x-1/2 -translate-y-full mb-1 border border-border dark:bg-zinc-950 dark:text-white dark:border-zinc-700"
                 style={{
                   left: `${hoveredCell.x + 6}px`,
                   top: `${hoveredCell.y - 4}px`,

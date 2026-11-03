@@ -453,7 +453,7 @@ export function CodeforcesProfileView({ profile, contests: propContests }: Codef
             {/* Cell Tooltip */}
             {hoveredCell && (
               <div
-                className="fixed z-50 rounded bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white shadow-md pointer-events-none -translate-x-1/2 -translate-y-full mb-1"
+                className="fixed z-50 rounded bg-popover px-2 py-1 text-[11px] font-medium text-popover-foreground shadow-md pointer-events-none -translate-x-1/2 -translate-y-full mb-1 border border-border dark:bg-zinc-900 dark:text-white"
                 style={{
                   left: `${hoveredCell.x + 6}px`,
                   top: `${hoveredCell.y - 4}px`,
