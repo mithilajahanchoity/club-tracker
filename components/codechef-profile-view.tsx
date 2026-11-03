@@ -4,10 +4,12 @@ import { useState, useMemo } from "react";
 import { formatDate } from "@/lib/format";
 import { PlatformIcon } from "./platform-icon";
 import type { CodeChefPublicProfile, CodeChefContestPoint } from "@/lib/codechef";
+import { ContestParticipationTable, type ContestItem } from "./contest-participation-table";
 
 interface CodeChefProfileViewProps {
   profile: CodeChefPublicProfile;
   profileId?: string;
+  contests?: ContestItem[];
 }
 
 const monthsShort = [
@@ -15,7 +17,7 @@ const monthsShort = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
-export function CodeChefProfileView({ profile }: CodeChefProfileViewProps) {
+export function CodeChefProfileView({ profile, contests: propContests }: CodeChefProfileViewProps) {
   const [contestFilter, setContestFilter] = useState<"all" | "recent">("recent");
   const [selectedYear, setSelectedYear] = useState<string>("rolling");
   const [hoveredPoint, setHoveredPoint] = useState<CodeChefContestPoint | null>(null);
@@ -159,6 +161,18 @@ export function CodeChefProfileView({ profile }: CodeChefProfileViewProps) {
 
     return { width, height, paddingX, paddingY, minRating, maxRating, points, pathD };
   }, [displayedContests]);
+
+  const ccContestItems: ContestItem[] = useMemo(() => {
+    if (propContests && propContests.length > 0) return propContests;
+    return profile.contestHistory.map((c) => ({
+      contest_name: c.name,
+      platform: "codechef",
+      contest_date: c.dateIso,
+      rank: c.rank,
+      rating_change: c.ratingChange,
+      url: c.code ? `https://www.codechef.com/${c.code}` : undefined,
+    }));
+  }, [profile.contestHistory, propContests]);
 
   const profileUrl = `https://www.codechef.com/users/${encodeURIComponent(profile.handle)}`;
 
@@ -603,67 +617,14 @@ export function CodeChefProfileView({ profile }: CodeChefProfileViewProps) {
         </div>
       </section>
 
-      {/* =========================================================================
-          CONTEST PARTICIPATION TABLE
-         ========================================================================= */}
-      {profile.contestHistory.length > 0 && (
-        <section className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-xs">
-          <h3 className="text-sm font-semibold tracking-tight mb-3">Recent Contests</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border/60 text-muted-foreground uppercase text-[10px]">
-                <tr>
-                  <th className="pb-2 font-medium">Contest</th>
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium text-center">Rank</th>
-                  <th className="pb-2 font-medium text-center">Change</th>
-                  <th className="pb-2 font-medium text-right">Rating</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30">
-                {profile.contestHistory.slice(-15).reverse().map((c) => (
-                  <tr key={c.code} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-2.5 pr-2 font-medium text-foreground">
-                      <a
-                        href={`https://www.codechef.com/${c.code}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {c.name}
-                      </a>
-                    </td>
-                    <td className="py-2.5 text-muted-foreground whitespace-nowrap">
-                      {c.dateFormatted}
-                    </td>
-                    <td className="py-2.5 text-center font-mono text-muted-foreground">
-                      #{c.rank}
-                    </td>
-                    <td className="py-2.5 text-center font-mono">
-                      {c.ratingChange !== 0 ? (
-                        <span
-                          className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                            c.ratingChange > 0
-                              ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
-                              : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-                          }`}
-                        >
-                          {c.ratingChange > 0 ? `+${c.ratingChange}` : c.ratingChange}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 text-right font-mono font-bold" style={{ color: c.color }}>
-                      {c.rating}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      {/* CodeChef Contest Participation Table */}
+      <ContestParticipationTable
+        contests={ccContestItems}
+        title="CodeChef Contest Participation"
+        subtitle="Official rated contests recorded on CodeChef for this member"
+        emptyMessage="No rated contest participations recorded for CodeChef."
+        showPlatform={true}
+      />
     </div>
   );
 }
