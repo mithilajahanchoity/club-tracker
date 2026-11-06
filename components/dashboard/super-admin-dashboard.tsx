@@ -176,7 +176,7 @@ export function SuperAdminDashboard({
                 ⚠️
               </span>
               <h2 className="font-semibold text-amber-900 dark:text-amber-200">
-                Action Required: {pendingMembers.length} student{pendingMembers.length > 1 ? "s" : ""} waiting for approval
+                Action Required: {pendingMembers.length} application{pendingMembers.length > 1 ? "s" : ""} waiting for approval
               </h2>
             </div>
             <Link
@@ -194,12 +194,20 @@ export function SuperAdminDashboard({
                 className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm first:pt-1 last:pb-0"
               >
                 <div>
-                  <p className="font-medium text-foreground">
-                    {m.full_name}{" "}
-                    <span className="font-mono text-xs text-muted-foreground">({m.student_id})</span>
-                  </p>
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <span>{m.full_name}</span>
+                    {m.role === "advisor" ? (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                        🎓 Advisor
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground">({m.student_id})</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Batch {m.batch || "—"} &middot; {m.email} &middot; Applied {formatDate(m.created_at)}
+                    {m.role === "advisor"
+                      ? `${m.batch ? m.batch + " · " : ""}${m.email} · Applied ${formatDate(m.created_at)}`
+                      : `Batch ${m.batch || "—"} · ${m.email} · Applied ${formatDate(m.created_at)}`}
                   </p>
                 </div>
                 <form action={decideMember} className="flex items-center gap-2">

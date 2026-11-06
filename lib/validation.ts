@@ -9,8 +9,9 @@ const handle = z
   )
   .or(z.literal(""));
 
-export const signupSchema = z
+export const memberSignupSchema = z
   .object({
+    role: z.literal("member").default("member"),
     full_name: z.string().trim().min(2, "Enter your full name").max(100),
     email: z.string().trim().email("Enter a valid email address"),
     password: z
@@ -42,6 +43,46 @@ export const signupSchema = z
     path: ["confirm_password"],
   });
 
+export const advisorSignupSchema = z
+  .object({
+    role: z.literal("advisor"),
+    full_name: z.string().trim().min(2, "Enter your full name").max(100),
+    email: z.string().trim().email("Enter a valid email address"),
+    password: z
+      .string()
+      .min(8, "Use at least 8 characters")
+      .max(72, "Use at most 72 characters"),
+    confirm_password: z.string(),
+    contact: z
+      .string()
+      .trim()
+      .regex(/^[+0-9][0-9 -]{6,19}$/, "Enter a valid phone number"),
+    designation: z
+      .string()
+      .trim()
+      .min(2, "Enter your designation (e.g. Lecturer, Assistant Professor)")
+      .max(100),
+    department: z
+      .string()
+      .trim()
+      .min(2, "Enter your department (e.g. ICE)")
+      .max(100),
+    consent: z
+      .boolean()
+      .refine((v) => v === true, "You must accept to create an account"),
+  })
+  .refine((d) => d.password === d.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
+export const signupSchema = z.discriminatedUnion("role", [
+  memberSignupSchema,
+  advisorSignupSchema,
+]);
+
+export type MemberSignupInput = z.infer<typeof memberSignupSchema>;
+export type AdvisorSignupInput = z.infer<typeof advisorSignupSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 
 export const profileUpdateSchema = z.object({
