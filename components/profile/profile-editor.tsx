@@ -224,9 +224,18 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                <span className="font-mono font-medium text-foreground">{profile.student_id}</span>
-                {profile.batch && <span> &middot; Batch {profile.batch}</span>}
-                <span> &middot; {profile.email}</span>
+                {profile.role === "advisor" ? (
+                  <>
+                    {profile.batch && <span className="font-medium text-foreground">{profile.batch} &middot; </span>}
+                    <span>{profile.email}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono font-medium text-foreground">{profile.student_id}</span>
+                    {profile.batch && <span> &middot; Batch {profile.batch}</span>}
+                    <span> &middot; {profile.email}</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -403,10 +412,11 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                 </p>
               </div>
 
-              {/* Batch */}
+              {/* Batch or Department */}
               <div className="space-y-1.5">
                 <label htmlFor="batch" className="text-xs font-semibold text-foreground">
-                  Batch / Intake <span className="text-destructive">*</span>
+                  {profile.role === "advisor" ? "Department / Faculty" : "Batch / Intake"}{" "}
+                  <span className="text-destructive">*</span>
                 </label>
                 <input
                   id="batch"
@@ -414,11 +424,13 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                   required
                   value={batch}
                   onChange={(e) => setBatch(e.target.value)}
-                  placeholder="e.g. Batch 10 or 2022"
+                  placeholder={profile.role === "advisor" ? "e.g. ICE" : "e.g. Batch 10 or 2022"}
                   className={inputClass}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Used for batch filtering and statistics.
+                  {profile.role === "advisor"
+                    ? "Academic department or faculty affiliation."
+                    : "Used for batch filtering and statistics."}
                 </p>
               </div>
 

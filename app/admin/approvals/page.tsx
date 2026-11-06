@@ -19,7 +19,7 @@ async function ApprovalsContent() {
 
   const { data: pending } = await supabase
     .from("profiles")
-    .select("id, full_name, email, student_id, batch, created_at")
+    .select("id, full_name, email, student_id, batch, contact, role, created_at")
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -31,7 +31,7 @@ async function ApprovalsContent() {
           <div>
             <h1 className="text-2xl font-bold">Pending approvals</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {pending?.length ?? 0} member{(pending?.length ?? 0) !== 1 ? "s" : ""} waiting
+              {pending?.length ?? 0} application{(pending?.length ?? 0) !== 1 ? "s" : ""} waiting
             </p>
           </div>
         </div>
@@ -41,7 +41,7 @@ async function ApprovalsContent() {
             <p className="text-3xl mb-3">✅</p>
             <p className="font-medium">All caught up!</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              No members are waiting for approval.
+              No members or advisors are waiting for approval.
             </p>
           </div>
         ) : (
@@ -49,16 +49,48 @@ async function ApprovalsContent() {
             {pending.map((m) => (
               <li
                 key={m.id}
-                className="rounded-xl border border-border bg-card p-4"
+                className="rounded-xl border border-border bg-card p-4 shadow-xs"
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-1 text-sm">
-                    <p className="font-semibold text-base">{m.full_name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-base text-foreground">{m.full_name}</p>
+                      {m.role === "advisor" ? (
+                        <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                          🎓 Advisor
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          👤 Member
+                        </span>
+                      )}
+                    </div>
                     <p className="text-muted-foreground">{m.email}</p>
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>ID: <span className="font-mono">{m.student_id}</span></span>
-                      <span>Batch: {m.batch || "—"}</span>
-                      <span>Signed up: {formatDate(m.created_at)}</span>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-0.5">
+                      {m.role === "advisor" ? (
+                        <>
+                          {m.batch && (
+                            <span>
+                              Department: <span className="font-medium text-foreground">{m.batch}</span>
+                            </span>
+                          )}
+                          {m.contact && (
+                            <span>
+                              Contact: <span className="font-medium text-foreground">{m.contact}</span>
+                            </span>
+                          )}
+                          <span>Applied: {formatDate(m.created_at)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>
+                            ID: <span className="font-mono">{m.student_id}</span>
+                          </span>
+                          <span>Batch: {m.batch || "—"}</span>
+                          {m.contact && <span>Contact: {m.contact}</span>}
+                          <span>Signed up: {formatDate(m.created_at)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <form action={decideMember} className="flex gap-2">
