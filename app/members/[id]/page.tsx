@@ -13,6 +13,7 @@ import { getCodeforcesPublicDetails } from "@/lib/codeforces";
 import { getVJudgePublicDetails } from "@/lib/vjudge";
 import { getGitHubPublicDetails } from "@/lib/github";
 import { getCodeChefPublicDetails } from "@/lib/codechef";
+import { getLeetCodePublicDetails } from "@/lib/leetcode";
 import { SyncPlatformButton } from "@/components/sync-platform-button";
 import { PlatformIcon } from "@/components/platform-icon";
 import { changeMember } from "./actions";
@@ -24,6 +25,7 @@ const platformLabels: Record<string, string> = {
   beecrowd: "Beecrowd",
   hackerrank: "HackerRank",
   github: "GitHub",
+  leetcode: "LeetCode",
 };
 
 const platformIcons: Record<string, string> = {
@@ -33,6 +35,7 @@ const platformIcons: Record<string, string> = {
   beecrowd: "🐝",
   hackerrank: "💻",
   github: "🐙",
+  leetcode: "🔶",
 };
 
 const platformUrls: Record<string, (handle: string) => string> = {
@@ -42,6 +45,7 @@ const platformUrls: Record<string, (handle: string) => string> = {
   github: (h) => `https://github.com/${h}`,
   codechef: (h) => `https://www.codechef.com/users/${h}`,
   vjudge: (h) => `https://vjudge.net/user/${h}`,
+  leetcode: (h) => `https://leetcode.com/u/${h}`,
 };
 
 const statusColors: Record<string, string> = {
@@ -186,6 +190,19 @@ async function MemberContent({
     );
   }
 
+  // Fetch LeetCode public details if member has a LeetCode handle
+  const leetcodeAccount = (accounts ?? []).find((a) => a.platform === "leetcode");
+  let leetcodeDetails = null;
+  if (leetcodeAccount?.handle) {
+    const lcActivity = (activity ?? []).filter((a) => a.platform === "leetcode");
+    const lcContests = (contests ?? []).filter((c) => c.platform === "leetcode");
+    leetcodeDetails = await getLeetCodePublicDetails(
+      leetcodeAccount.handle,
+      lcActivity,
+      lcContests
+    );
+  }
+
   if (id !== user.id) {
     try {
       await createAdminClient().from("audit_logs").insert({
@@ -322,6 +339,7 @@ async function MemberContent({
           vjudgeDetails={vjudgeDetails}
           githubDetails={githubDetails}
           codechefDetails={codechefDetails}
+          leetcodeDetails={leetcodeDetails}
           profileId={member.id}
         />
 

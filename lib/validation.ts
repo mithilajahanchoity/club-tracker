@@ -34,6 +34,7 @@ export const memberSignupSchema = z
     beecrowd_handle: handle,
     hackerrank_handle: handle,
     github_username: handle,
+    leetcode_handle: handle,
     consent: z
       .boolean()
       .refine((v) => v === true, "You must accept to create an account"),
@@ -104,6 +105,7 @@ export const platformAccountsSchema = z.object({
   github: handle,
   codechef: handle,
   vjudge: handle,
+  leetcode: handle,
 });
 
 export type PlatformAccountsInput = z.infer<typeof platformAccountsSchema>;

@@ -7,6 +7,7 @@ import { CodeforcesProfileView } from "./codeforces-profile-view";
 import { VJudgeProfileView } from "./vjudge-profile-view";
 import { GitHubProfileView } from "./github-profile-view";
 import { CodeChefProfileView } from "./codechef-profile-view";
+import { LeetCodeProfileView } from "./leetcode-profile-view";
 import { PlatformIcon } from "./platform-icon";
 import { ContestParticipationTable, type ContestItem } from "./contest-participation-table";
 import type { BeecrowdPublicProfile } from "@/lib/beecrowd";
@@ -14,6 +15,7 @@ import type { CodeforcesPublicProfile } from "@/lib/codeforces";
 import type { VJudgePublicProfile } from "@/lib/vjudge";
 import type { GitHubPublicProfile } from "@/lib/github";
 import type { CodeChefPublicProfile } from "@/lib/codechef";
+import type { LeetCodePublicProfile } from "@/lib/leetcode";
 
 export type PlatformAccount = {
   platform: string;
@@ -48,6 +50,7 @@ interface MemberPlatformStatsProps {
   vjudgeDetails?: VJudgePublicProfile | null;
   githubDetails?: GitHubPublicProfile | null;
   codechefDetails?: CodeChefPublicProfile | null;
+  leetcodeDetails?: LeetCodePublicProfile | null;
   profileId?: string;
 }
 
@@ -59,6 +62,7 @@ const platformIcons: Record<string, string> = {
   github: "🐙",
   codechef: "🍳",
   vjudge: "⚖",
+  leetcode: "🔶",
 };
 
 const platformLabels: Record<string, string> = {
@@ -69,6 +73,7 @@ const platformLabels: Record<string, string> = {
   github: "GitHub",
   codechef: "CodeChef",
   vjudge: "VJudge",
+  leetcode: "LeetCode",
 };
 
 const platformUrls: Record<string, (handle: string) => string> = {
@@ -78,6 +83,7 @@ const platformUrls: Record<string, (handle: string) => string> = {
   github: (h) => `https://github.com/${h}`,
   codechef: (h) => `https://www.codechef.com/users/${h}`,
   vjudge: (h) => `https://vjudge.net/user/${h}`,
+  leetcode: (h) => `https://leetcode.com/u/${h}`,
 };
 
 const monthsShort = [
@@ -105,6 +111,7 @@ export function MemberPlatformStats({
   vjudgeDetails,
   githubDetails,
   codechefDetails,
+  leetcodeDetails,
   profileId,
 }: MemberPlatformStatsProps) {
   const [selectedPlatform, setSelectedPlatform] = useState<string>(initialPlatform);
@@ -177,7 +184,25 @@ export function MemberPlatformStats({
       }
     }
 
-    // 3. Add all database contest records (HackerRank, VJudge, Codeforces, CodeChef, etc.)
+    // 3. Add LeetCode live contest history if present
+    if (leetcodeDetails?.contestHistory) {
+      for (const c of leetcodeDetails.contestHistory) {
+        const key = `leetcode:${c.title}:${c.dateIso}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            contest_name: c.title,
+            platform: "leetcode",
+            contest_date: c.dateIso,
+            rank: c.ranking,
+            rating_change: c.ratingChange,
+            url: c.url,
+          });
+        }
+      }
+    }
+
+    // 4. Add all database contest records (HackerRank, VJudge, Codeforces, CodeChef, LeetCode, etc.)
     for (const c of contests) {
       const key = `${c.platform}:${c.contest_name}:${c.contest_date}`;
       if (!seen.has(key)) {
@@ -198,7 +223,7 @@ export function MemberPlatformStats({
       const dateB = b.contest_date?.slice(0, 10) || "";
       return dateB.localeCompare(dateA);
     });
-  }, [contests, codeforcesDetails, codechefDetails]);
+  }, [contests, codeforcesDetails, codechefDetails, leetcodeDetails]);
 
   // Filter unified contests based on selected platform
   const filteredUnifiedContests = useMemo(() => {
@@ -443,6 +468,8 @@ export function MemberPlatformStats({
         <GitHubProfileView profile={githubDetails} profileId={profileId} />
       ) : selectedPlatform === "codechef" && codechefDetails ? (
         <CodeChefProfileView profile={codechefDetails} profileId={profileId} contests={filteredUnifiedContests} />
+      ) : selectedPlatform === "leetcode" && leetcodeDetails ? (
+        <LeetCodeProfileView profile={leetcodeDetails} profileId={profileId} contests={filteredUnifiedContests} />
       ) : (
         <>
           {/* Active Platform Header & Link Banner (if specific platform selected) */}

@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCodeChefPublicDetails } from "@/lib/codechef";
+import { getLeetCodePublicDetails } from "@/lib/leetcode";
 
 const WINDOW_DAYS = 30;
 const TZ_OFFSET_HOURS = 6; // Bangladesh time (UTC+6)
@@ -622,6 +623,88 @@ async function syncCodeChef(admin: ReturnType<typeof createAdminClient>, profile
   return `CodeChef: ${profile.totalSolved} solved, ${ratingText}, ${profile.contestHistory.length} contests synced.`;
 }
 
+// ----------------- LeetCode Sync -----------------
+async function syncLeetCode(admin: ReturnType<typeof createAdminClient>, profileId: string, handle: string) {
+  const profile = await getLeetCodePublicDetails(handle);
+  if (!profile) {
+    throw new Error(`LeetCode account '${handle}' not found or unreachable.`);
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const today = localDate(nowSec);
+
+  // 1. Daily solves from activityMap (heatmap data)
+  const dailyRows: Array<{
+    profile_id: string;
+    platform: string;
+    activity_date: string;
+    solved: number;
+    rating?: number | null;
+  }> = [];
+
+  for (const [activity_date, solved] of Object.entries(profile.activityMap)) {
+    if (solved > 0) {
+      dailyRows.push({
+        profile_id: profileId,
+        platform: "leetcode",
+        activity_date,
+        solved,
+      });
+    }
+  }
+
+  // If no heatmap daily data was returned but totalSolved > 0, record total for today
+  if (dailyRows.length === 0 && profile.totalSolved > 0) {
+    dailyRows.push({
+      profile_id: profileId,
+      platform: "leetcode",
+      activity_date: today,
+      solved: profile.totalSolved,
+    });
+  }
+
+  if (dailyRows.length > 0) {
+    await admin.from("activity_daily").upsert(dailyRows, {
+      onConflict: "profile_id,platform,activity_date",
+    });
+  }
+
+  // 2. Current contest rating
+  if (profile.contestRating != null) {
+    await admin.from("activity_daily").upsert(
+      [
+        {
+          profile_id: profileId,
+          platform: "leetcode",
+          activity_date: today,
+          rating: profile.contestRating,
+        },
+      ],
+      { onConflict: "profile_id,platform,activity_date" }
+    );
+  }
+
+  // 3. Contest participations
+  if (profile.contestHistory.length > 0) {
+    const contestRows = profile.contestHistory.map((c) => ({
+      profile_id: profileId,
+      platform: "leetcode",
+      contest_name: String(c.title).slice(0, 200),
+      contest_date: c.dateIso || today,
+      rank: c.ranking || null,
+      rating_change: c.ratingChange || null,
+    }));
+
+    await admin.from("contest_participation").upsert(contestRows, {
+      onConflict: "profile_id,platform,contest_name,contest_date",
+    });
+  }
+
+  const badgeText = profile.contestBadge ? ` (${profile.contestBadge})` : "";
+  const ratingText = profile.contestRating ? `rating: ${profile.contestRating}${badgeText}` : "unrated";
+  return `LeetCode: ${profile.totalSolved} solved (${profile.easySolved}E / ${profile.mediumSolved}M / ${profile.hardSolved}H), ${ratingText}, ${profile.contestHistory.length} contests synced.`;
+}
+
 async function syncGenericPlatform(platform: string, handle: string) {
   const clean = handle.trim();
   const url = `https://www.codechef.com/users/${encodeURIComponent(clean)}`;
@@ -671,6 +754,8 @@ export async function syncSingleAccount(profileId: string, platform: string): Pr
       summary = await syncVJudge(admin, profileId, acct.handle);
     } else if (platform === "codechef") {
       summary = await syncCodeChef(admin, profileId, acct.handle);
+    } else if (platform === "leetcode") {
+      summary = await syncLeetCode(admin, profileId, acct.handle);
     } else {
       summary = await syncGenericPlatform(platform, acct.handle);
     }

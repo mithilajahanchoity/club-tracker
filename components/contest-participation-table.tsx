@@ -30,6 +30,7 @@ const platformLabels: Record<string, string> = {
   beecrowd: "Beecrowd",
   hackerrank: "HackerRank",
   github: "GitHub",
+  leetcode: "LeetCode",
 };
 
 export function ContestParticipationTable({
