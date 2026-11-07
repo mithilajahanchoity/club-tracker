@@ -75,6 +75,7 @@ export async function updatePlatformAccounts(
     github: formData.get("github") || "",
     codechef: formData.get("codechef") || "",
     vjudge: formData.get("vjudge") || "",
+    leetcode: formData.get("leetcode") || "",
   };
 
   const parsed = platformAccountsSchema.safeParse(raw);
@@ -103,6 +104,7 @@ export async function updatePlatformAccounts(
     "github",
     "codechef",
     "vjudge",
+    "leetcode",
   ] as const;
 
   for (const p of platforms) {
@@ -122,7 +124,7 @@ export async function updatePlatformAccounts(
       if (existing) {
         // If handle changed, update handle and reset verified status
         if (existing.handle !== newHandle) {
-          await admin
+          const { error: updateErr } = await admin
             .from("platform_accounts")
             .update({
               handle: newHandle,
@@ -131,15 +133,35 @@ export async function updatePlatformAccounts(
             })
             .eq("profile_id", user.id)
             .eq("platform", p);
+
+          if (updateErr) {
+            if (updateErr.code === "23514" && p === "leetcode") {
+              return {
+                error:
+                  "LeetCode support requires applying the database migration in Supabase SQL Editor (supabase/migrations/005_add_leetcode.sql).",
+              };
+            }
+            return { error: `Failed to update ${p} handle: ${updateErr.message}` };
+          }
         }
       } else {
         // Insert new account
-        await admin.from("platform_accounts").insert({
+        const { error: insertErr } = await admin.from("platform_accounts").insert({
           profile_id: user.id,
           platform: p,
           handle: newHandle,
           verified: false,
         });
+
+        if (insertErr) {
+          if (insertErr.code === "23514" && p === "leetcode") {
+            return {
+              error:
+                "LeetCode support requires applying the database migration in Supabase SQL Editor (supabase/migrations/005_add_leetcode.sql).",
+            };
+          }
+          return { error: `Failed to save ${p} handle: ${insertErr.message}` };
+        }
       }
     }
   }

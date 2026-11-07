@@ -28,11 +28,12 @@ async function HomeContent() {
 
   const platforms = [
     { key: "codeforces", name: "Codeforces" },
-    { key: "beecrowd", name: "Beecrowd" },
+    { key: "leetcode", name: "LeetCode" },
+    { key: "codechef", name: "CodeChef" },
     { key: "vjudge", name: "VJudge" },
     { key: "github", name: "GitHub" },
     { key: "hackerrank", name: "HackerRank" },
-    { key: "codechef", name: "CodeChef" },
+    { key: "beecrowd", name: "Beecrowd" },
   ];
 
   return (

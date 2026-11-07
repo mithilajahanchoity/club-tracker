@@ -41,6 +41,7 @@ const platformLabels: Record<string, string> = {
   beecrowd: "Beecrowd",
   hackerrank: "HackerRank",
   github: "GitHub",
+  leetcode: "LeetCode",
 };
 
 const platformIcons: Record<string, string> = {
@@ -50,6 +51,7 @@ const platformIcons: Record<string, string> = {
   beecrowd: "🐝",
   hackerrank: "💻",
   github: "🐙",
+  leetcode: "🔶",
 };
 
 const platformUrls: Record<string, (handle: string) => string> = {
@@ -59,6 +61,7 @@ const platformUrls: Record<string, (handle: string) => string> = {
   github: (h) => `https://github.com/${h}`,
   codechef: (h) => `https://www.codechef.com/users/${h}`,
   vjudge: (h) => `https://vjudge.net/user/${h}`,
+  leetcode: (h) => `https://leetcode.com/u/${h}`,
 };
 
 export function MemberDashboard({
@@ -243,15 +246,9 @@ export function MemberDashboard({
                     <span className="rounded-full bg-muted px-2 py-0.5">Unverified</span>
                   )}
                   <span className="hidden sm:inline">
-                    {a.platform === "codeforces" ||
-                    a.platform === "github" ||
-                    a.platform === "beecrowd" ||
-                    a.platform === "hackerrank" ||
-                    a.platform === "vjudge"
-                      ? a.last_synced_at
-                        ? `synced ${formatDateTime(a.last_synced_at)}`
-                        : "waiting for first sync"
-                      : "sync coming soon"}
+                    {a.last_synced_at
+                      ? `synced ${formatDateTime(a.last_synced_at)}`
+                      : "waiting for first sync"}
                   </span>
                   <SyncPlatformButton
                     profileId={profile.id}

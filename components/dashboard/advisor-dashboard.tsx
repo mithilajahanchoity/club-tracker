@@ -43,6 +43,7 @@ const platformIcons: Record<string, string> = {
   beecrowd: "🐝",
   hackerrank: "💻",
   github: "🐙",
+  leetcode: "🔶",
 };
 
 const platformNames: Record<string, string> = {
@@ -52,6 +53,7 @@ const platformNames: Record<string, string> = {
   beecrowd: "Beecrowd",
   hackerrank: "HackerRank",
   github: "GitHub",
+  leetcode: "LeetCode",
 };
 
 export function AdvisorDashboard({
@@ -315,8 +317,8 @@ export function AdvisorDashboard({
               </p>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-              {["codeforces", "hackerrank", "beecrowd", "vjudge", "github"].map((plat) => {
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+              {["codeforces", "leetcode", "codechef", "vjudge", "hackerrank", "beecrowd", "github"].map((plat) => {
                 const stats = platformCounts[plat] || { total: 0, verified: 0 };
                 return (
                   <div key={plat} className="rounded-lg border border-border bg-muted/20 p-3">

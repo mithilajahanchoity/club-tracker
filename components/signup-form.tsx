@@ -30,6 +30,7 @@ type FormValues = {
   beecrowd_handle: string;
   hackerrank_handle: string;
   github_username: string;
+  leetcode_handle: string;
 };
 
 const emptyValues: FormValues = {
@@ -48,6 +49,7 @@ const emptyValues: FormValues = {
   beecrowd_handle: "",
   hackerrank_handle: "",
   github_username: "",
+  leetcode_handle: "",
 };
 
 function Field(props: {
@@ -133,6 +135,7 @@ export function SignupForm() {
         beecrowd_handle: values.beecrowd_handle,
         hackerrank_handle: values.hackerrank_handle,
         github_username: values.github_username,
+        leetcode_handle: values.leetcode_handle,
         consent,
       });
 
@@ -167,6 +170,7 @@ export function SignupForm() {
             beecrowd_handle: d.beecrowd_handle,
             hackerrank_handle: d.hackerrank_handle,
             github_username: d.github_username,
+            leetcode_handle: d.leetcode_handle,
             consent: "true",
           },
         },
@@ -465,6 +469,16 @@ export function SignupForm() {
               value={values.github_username}
               onChange={set("github_username")}
               error={errors.github_username}
+            />
+            <Field
+              id="leetcode_handle"
+              label="LeetCode"
+              icon={<PlatformIcon platform="leetcode" className="h-4 w-4" />}
+              optional
+              placeholder="username"
+              value={values.leetcode_handle}
+              onChange={set("leetcode_handle")}
+              error={errors.leetcode_handle}
             />
           </section>
 

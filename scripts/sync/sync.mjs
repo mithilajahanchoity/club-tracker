@@ -34,7 +34,7 @@ const USER_AGENT = "club-tracker-sync (university programming club project)";
 
 const onlyArg = process.argv.find((a) => a.startsWith("--only="));
 const only = onlyArg ? onlyArg.split("=")[1] : null;
-const platforms = ["codeforces", "github", "beecrowd", "hackerrank", "vjudge", "codechef"].filter((p) => !only || p === only);
+const platforms = ["codeforces", "github", "beecrowd", "hackerrank", "vjudge", "codechef", "leetcode"].filter((p) => !only || p === only);
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
@@ -789,6 +789,138 @@ async function syncCodechef(acct) {
   return `${totalSolved} solved, rating: ${rating ?? "unrated"}${stars ? ` (${stars})` : ""}, ${contestCount} contests`;
 }
 
+// ---------- LeetCode ----------
+async function syncLeetcode(acct) {
+  const query = `
+    query getLeetCodeUserData($username: String!) {
+      matchedUser(username: $username) {
+        submitStatsGlobal {
+          acSubmissionNum {
+            difficulty
+            count
+          }
+        }
+        userCalendar {
+          submissionCalendar
+        }
+      }
+      userContestRanking(username: $username) {
+        rating
+        attendedContestsCount
+        badge { name }
+      }
+      userContestRankingHistory(username: $username) {
+        attended
+        rating
+        ranking
+        contest { title startTime }
+      }
+    }
+  `;
+
+  const res = await fetch("https://leetcode.com/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Referer": "https://leetcode.com",
+      "User-Agent": USER_AGENT,
+    },
+    body: JSON.stringify({
+      query,
+      variables: { username: acct.handle.trim() },
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const user = json?.data?.matchedUser;
+  if (!user) throw new Error(`LeetCode account '${acct.handle}' not found.`);
+
+  const acStats = user.submitStatsGlobal?.acSubmissionNum || [];
+  const allStat = acStats.find((s) => s.difficulty === "All") || { count: 0 };
+  const totalSolved = allStat.count || 0;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const today = localDate(nowSec);
+
+  const dailyRows = [];
+  const calJsonStr = user.userCalendar?.submissionCalendar;
+  if (calJsonStr) {
+    try {
+      const cal = JSON.parse(calJsonStr);
+      for (const [secStr, count] of Object.entries(cal)) {
+        const sec = parseInt(secStr, 10);
+        if (!isNaN(sec) && count > 0) {
+          const d = localDate(sec);
+          dailyRows.push({
+            profile_id: acct.profile_id,
+            platform: "leetcode",
+            activity_date: d,
+            solved: Number(count),
+          });
+        }
+      }
+    } catch {}
+  }
+
+  if (dailyRows.length === 0 && totalSolved > 0) {
+    dailyRows.push({
+      profile_id: acct.profile_id,
+      platform: "leetcode",
+      activity_date: today,
+      solved: totalSolved,
+    });
+  }
+
+  if (dailyRows.length > 0) {
+    await supabase.from("activity_daily").upsert(dailyRows, {
+      onConflict: "profile_id,platform,activity_date",
+    });
+  }
+
+  const contestRanking = json?.data?.userContestRanking;
+  if (contestRanking?.rating != null) {
+    await supabase.from("activity_daily").upsert(
+      [
+        {
+          profile_id: acct.profile_id,
+          platform: "leetcode",
+          activity_date: today,
+          rating: Math.round(contestRanking.rating),
+        },
+      ],
+      { onConflict: "profile_id,platform,activity_date" }
+    );
+  }
+
+  const rawHistory = json?.data?.userContestRankingHistory || [];
+  const attendedHistory = rawHistory.filter((h) => h.attended && h.contest?.title);
+  if (attendedHistory.length > 0) {
+    let prevRating = 1500;
+    const sorted = [...attendedHistory].sort((a, b) => (a.contest?.startTime || 0) - (b.contest?.startTime || 0));
+    const contestRows = sorted.map((h) => {
+      const currentRating = Math.round(h.rating);
+      const ratingChange = currentRating - prevRating;
+      prevRating = currentRating;
+      return {
+        profile_id: acct.profile_id,
+        platform: "leetcode",
+        contest_name: String(h.contest.title).slice(0, 200),
+        contest_date: localDate(h.contest.startTime || nowSec),
+        rank: h.ranking || null,
+        rating_change: ratingChange,
+      };
+    });
+
+    await supabase.from("contest_participation").upsert(contestRows, {
+      onConflict: "profile_id,platform,contest_name,contest_date",
+    });
+  }
+
+  return `${totalSolved} solved, rating: ${contestRanking?.rating ? Math.round(contestRanking.rating) : "unrated"}`;
+}
+
 // ---------- Runner ----------
 
 const adapters = {
@@ -798,6 +930,7 @@ const adapters = {
   hackerrank: syncHackerrank,
   vjudge: syncVjudge,
   codechef: syncCodechef,
+  leetcode: syncLeetcode,
 };
 
 async function runPlatform(platform, accounts, stats) {

@@ -35,6 +35,7 @@ type Row = {
 
 const shortPlatform: Record<string, string> = {
   codeforces: "CF",
+  leetcode: "LC",
   codechef: "CC",
   vjudge: "VJ",
   beecrowd: "BC",

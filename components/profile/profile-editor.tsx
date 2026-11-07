@@ -86,6 +86,12 @@ const platformMeta: Record<
     placeholder: "e.g. vjudge_handle",
     url: (h) => `https://vjudge.net/user/${h}`,
   },
+  leetcode: {
+    label: "LeetCode",
+    icon: "🔶",
+    placeholder: "e.g. leetcode_username",
+    url: (h) => `https://leetcode.com/u/${h}`,
+  },
 };
 
 const inputClass =
@@ -112,6 +118,7 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
     github: "",
     codechef: "",
     vjudge: "",
+    leetcode: "",
   };
   for (const a of accounts) {
     if (a.platform in initialAccountsMap) {
