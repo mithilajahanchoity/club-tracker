@@ -86,7 +86,7 @@ async function MemberContent({
   const { data: member } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, email, student_id, batch, contact, role, status, consent_at, created_at"
+      "id, full_name, email, student_id, batch, contact, role, status, consent_at, created_at, designation, department"
     )
     .eq("id", id)
     .maybeSingle();
@@ -251,8 +251,17 @@ async function MemberContent({
         <section className="grid gap-4 rounded-xl border border-border bg-card p-4 text-sm sm:grid-cols-2">
           <Info label="Email" value={member.email} />
           <Info label="Contact" value={member.contact || "—"} />
-          <Info label="Student ID" value={member.student_id} mono />
-          <Info label="Batch" value={member.batch || "—"} />
+          {member.role === "advisor" ? (
+            <>
+              <Info label="Designation" value={member.designation || "Faculty Advisor"} />
+              <Info label="Department" value={member.department || member.batch || "—"} />
+            </>
+          ) : (
+            <>
+              <Info label="Student ID" value={member.student_id} mono />
+              <Info label="Batch" value={member.batch || "—"} />
+            </>
+          )}
           <Info label="Last login" value={formatDateTime(lastSignIn)} />
           <Info label="Joined" value={formatDate(member.created_at)} />
           <Info
@@ -261,87 +270,105 @@ async function MemberContent({
           />
         </section>
 
-        {/* Platform usernames */}
-        <section className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="font-semibold">Platform usernames</h2>
-          </div>
-          {accounts && accounts.length > 0 ? (
-            <ul className="divide-y divide-border text-sm">
-              {accounts.map((a) => (
-                <li
-                  key={a.platform}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <PlatformIcon
-                      platform={a.platform}
-                      className="h-4 w-4 shrink-0"
-                      fallback={<span>{platformIcons[a.platform] ?? "🔗"}</span>}
-                    />
-                    <span className="font-medium">
-                      {platformLabels[a.platform] ?? a.platform}
-                    </span>
-                    {platformUrls[a.platform] ? (
-                      <a
-                        href={platformUrls[a.platform](a.handle)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
-                        title={`Open ${platformLabels[a.platform] ?? a.platform} profile`}
-                      >
-                        <span>{a.handle}</span>
-                        <span className="text-[10px] opacity-70">↗</span>
-                      </a>
-                    ) : (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {a.handle}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    {a.verified ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700 dark:bg-green-950 dark:text-green-300">
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
-                        Unverified
-                      </span>
-                    )}
-                    <span className="text-muted-foreground">
-                      synced {formatDateTime(a.last_synced_at).replace("Never", "never")}
-                    </span>
-                    <SyncPlatformButton
-                      profileId={member.id}
-                      platform={a.platform}
-                      platformName={platformLabels[a.platform] ?? a.platform}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No platform usernames added.
-            </p>
-          )}
-        </section>
+        {member.role === "advisor" ? (
+          <section className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-lg dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                🎓
+              </div>
+              <div>
+                <h2 className="font-semibold text-foreground">Faculty Advisor</h2>
+                <p className="text-xs text-muted-foreground">
+                  Faculty advisors have read-only academic and mentorship oversight across the club. Coding platform handles and student competitive metrics are not tracked for advisors.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            {/* Platform usernames */}
+            <section className="rounded-xl border border-border bg-card">
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="font-semibold">Platform usernames</h2>
+              </div>
+              {accounts && accounts.length > 0 ? (
+                <ul className="divide-y divide-border text-sm">
+                  {accounts.map((a) => (
+                    <li
+                      key={a.platform}
+                      className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <PlatformIcon
+                          platform={a.platform}
+                          className="h-4 w-4 shrink-0"
+                          fallback={<span>{platformIcons[a.platform] ?? "🔗"}</span>}
+                        />
+                        <span className="font-medium">
+                          {platformLabels[a.platform] ?? a.platform}
+                        </span>
+                        {platformUrls[a.platform] ? (
+                          <a
+                            href={platformUrls[a.platform](a.handle)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                            title={`Open ${platformLabels[a.platform] ?? a.platform} profile`}
+                          >
+                            <span>{a.handle}</span>
+                            <span className="text-[10px] opacity-70">↗</span>
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {a.handle}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        {a.verified ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700 dark:bg-green-950 dark:text-green-300">
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                            Unverified
+                          </span>
+                        )}
+                        <span className="text-muted-foreground">
+                          synced {formatDateTime(a.last_synced_at).replace("Never", "never")}
+                        </span>
+                        <SyncPlatformButton
+                          profileId={member.id}
+                          platform={a.platform}
+                          platformName={platformLabels[a.platform] ?? a.platform}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  No platform usernames added.
+                </p>
+              )}
+            </section>
 
-        {/* Comprehensive Platform Stats & 52-Week Activity Heatmap */}
-        <MemberPlatformStats
-          accounts={accounts ?? []}
-          activity={activity ?? []}
-          contests={contests ?? []}
-          initialPlatform={initialPlatform}
-          beecrowdDetails={beecrowdDetails}
-          codeforcesDetails={codeforcesDetails}
-          vjudgeDetails={vjudgeDetails}
-          githubDetails={githubDetails}
-          codechefDetails={codechefDetails}
-          leetcodeDetails={leetcodeDetails}
-          profileId={member.id}
-        />
+            {/* Comprehensive Platform Stats & 52-Week Activity Heatmap */}
+            <MemberPlatformStats
+              accounts={accounts ?? []}
+              activity={activity ?? []}
+              contests={contests ?? []}
+              initialPlatform={initialPlatform}
+              beecrowdDetails={beecrowdDetails}
+              codeforcesDetails={codeforcesDetails}
+              vjudgeDetails={vjudgeDetails}
+              githubDetails={githubDetails}
+              codechefDetails={codechefDetails}
+              leetcodeDetails={leetcodeDetails}
+              profileId={member.id}
+            />
+          </>
+        )}
 
         {/* Admin actions */}
         {canManage && (

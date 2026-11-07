@@ -53,6 +53,8 @@ begin
     student_id,
     batch,
     contact,
+    designation,
+    department,
     role,
     status,
     consent_at
@@ -73,6 +75,8 @@ begin
         coalesce(trim(meta->>'batch'), '')
     end,
     coalesce(trim(meta->>'contact'), ''),
+    coalesce(trim(meta->>'designation'), ''),
+    coalesce(trim(meta->>'department'), ''),
     user_role,
     'pending',
     case when meta->>'consent' = 'true' then now() end

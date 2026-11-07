@@ -26,7 +26,7 @@ async function ProfileContent() {
     supabase
       .from("profiles")
       .select(
-        "id, full_name, email, student_id, batch, contact, role, status, consent_at, created_at, updated_at"
+        "id, full_name, email, student_id, batch, contact, role, status, consent_at, created_at, updated_at, designation, department"
       )
       .eq("id", user.id)
       .maybeSingle(),

@@ -19,6 +19,8 @@ export type ProfileData = {
   student_id: string;
   batch: string;
   contact: string;
+  designation?: string | null;
+  department?: string | null;
   role: "member" | "advisor" | "super_admin";
   status: "pending" | "approved" | "rejected" | "suspended";
   consent_at: string | null;
@@ -101,12 +103,15 @@ const readOnlyClass =
   "w-full rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5 text-sm text-muted-foreground outline-none cursor-not-allowed";
 
 export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) {
+  const isAdvisor = profile.role === "advisor";
   const [activeTab, setActiveTab] = useState<"personal" | "platforms" | "security">("personal");
 
   // Personal Info Form State
   const [fullName, setFullName] = useState(profile.full_name);
   const [batch, setBatch] = useState(profile.batch || "");
   const [contact, setContact] = useState(profile.contact || "");
+  const [designation, setDesignation] = useState(profile.designation || "");
+  const [department, setDepartment] = useState(profile.department || profile.batch || "");
   const [personalState, setPersonalState] = useState<ActionState | null>(null);
   const [personalLoading, setPersonalLoading] = useState(false);
 
@@ -154,8 +159,14 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
     try {
       const formData = new FormData();
       formData.set("full_name", fullName);
-      formData.set("batch", batch);
       formData.set("contact", contact);
+      if (isAdvisor) {
+        formData.set("designation", designation);
+        formData.set("department", department);
+        formData.set("batch", department);
+      } else {
+        formData.set("batch", batch);
+      }
       const res = await updateProfileInfo(null, formData);
       setPersonalState(res);
     } catch (err: unknown) {
@@ -231,9 +242,18 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                {profile.role === "advisor" ? (
+                {isAdvisor ? (
                   <>
-                    {profile.batch && <span className="font-medium text-foreground">{profile.batch} &middot; </span>}
+                    {(designation || profile.designation) && (
+                      <span className="font-medium text-foreground">
+                        {designation || profile.designation} &middot;{" "}
+                      </span>
+                    )}
+                    {(department || profile.department || profile.batch) && (
+                      <span className="font-medium text-foreground">
+                        {department || profile.department || profile.batch} &middot;{" "}
+                      </span>
+                    )}
                     <span>{profile.email}</span>
                   </>
                 ) : (
@@ -259,34 +279,71 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
         </div>
 
         {/* Quick Activity Stats Bar */}
-        <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
-          <div className="rounded-xl bg-muted/30 p-3 text-center">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Solved Problems
-            </p>
-            <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalSolved}</p>
+        {isAdvisor ? (
+          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Designation
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-foreground truncate" title={designation || profile.designation || "Faculty Advisor"}>
+                {designation || profile.designation || "Faculty Advisor"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Department
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-foreground truncate" title={department || profile.department || profile.batch || "ICE"}>
+                {department || profile.department || profile.batch || "ICE"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Role &amp; Access
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-primary">
+                Faculty Oversight
+              </p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Account Status
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-green-600 dark:text-green-400 capitalize">
+                {profile.status}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl bg-muted/30 p-3 text-center">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              GitHub Commits
-            </p>
-            <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalCommits}</p>
+        ) : (
+          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Solved Problems
+              </p>
+              <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalSolved}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                GitHub Commits
+              </p>
+              <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalCommits}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Contests
+              </p>
+              <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalContests}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Connected Platforms
+              </p>
+              <p className="mt-0.5 text-xl font-bold text-foreground">
+                {accounts.length} / 7
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl bg-muted/30 p-3 text-center">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Contests
-            </p>
-            <p className="mt-0.5 text-xl font-bold text-foreground">{stats.totalContests}</p>
-          </div>
-          <div className="rounded-xl bg-muted/30 p-3 text-center">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Connected Platforms
-            </p>
-            <p className="mt-0.5 text-xl font-bold text-foreground">
-              {accounts.length} / 6
-            </p>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* 2. Tab Navigation */}
@@ -304,18 +361,20 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
           <span>Personal Info</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("platforms")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === "platforms"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          <span>🔗</span>
-          <span>Platform Handles ({accounts.length})</span>
-        </button>
+        {!isAdvisor && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("platforms")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === "platforms"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span>🔗</span>
+            <span>Platform Handles ({accounts.length})</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -377,26 +436,46 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                 </p>
               </div>
 
-              {/* Student ID (Read Only) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="student_id" className="text-xs font-semibold text-foreground">
-                    Student ID
+              {/* For Member: Student ID. For Advisor: Academic Designation */}
+              {isAdvisor ? (
+                <div className="space-y-1.5">
+                  <label htmlFor="designation" className="text-xs font-semibold text-foreground">
+                    Academic Designation <span className="text-destructive">*</span>
                   </label>
-                  <span className="text-[10px] text-muted-foreground font-mono">🔒 Locked</span>
+                  <input
+                    id="designation"
+                    type="text"
+                    required
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    placeholder="e.g. Lecturer, Assistant Professor, Professor"
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Official faculty designation at the university.
+                  </p>
                 </div>
-                <input
-                  id="student_id"
-                  type="text"
-                  readOnly
-                  disabled
-                  value={profile.student_id}
-                  className={readOnlyClass}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Permanent academic record. Contact an admin if this needs correction.
-                </p>
-              </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="student_id" className="text-xs font-semibold text-foreground">
+                      Student ID
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-mono">🔒 Locked</span>
+                  </div>
+                  <input
+                    id="student_id"
+                    type="text"
+                    readOnly
+                    disabled
+                    value={profile.student_id}
+                    className={readOnlyClass}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Permanent academic record. Contact an admin if this needs correction.
+                  </p>
+                </div>
+              )}
 
               {/* Email Address (Read Only) */}
               <div className="space-y-1.5">
@@ -419,27 +498,44 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
                 </p>
               </div>
 
-              {/* Batch or Department */}
-              <div className="space-y-1.5">
-                <label htmlFor="batch" className="text-xs font-semibold text-foreground">
-                  {profile.role === "advisor" ? "Department / Faculty" : "Batch / Intake"}{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <input
-                  id="batch"
-                  type="text"
-                  required
-                  value={batch}
-                  onChange={(e) => setBatch(e.target.value)}
-                  placeholder={profile.role === "advisor" ? "e.g. ICE" : "e.g. Batch 10 or 2022"}
-                  className={inputClass}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  {profile.role === "advisor"
-                    ? "Academic department or faculty affiliation."
-                    : "Used for batch filtering and statistics."}
-                </p>
-              </div>
+              {/* For Member: Batch. For Advisor: Department */}
+              {isAdvisor ? (
+                <div className="space-y-1.5">
+                  <label htmlFor="department" className="text-xs font-semibold text-foreground">
+                    Department / Faculty <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    id="department"
+                    type="text"
+                    required
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="e.g. ICE"
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Academic department or faculty affiliation.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label htmlFor="batch" className="text-xs font-semibold text-foreground">
+                    Batch / Intake <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    id="batch"
+                    type="text"
+                    required
+                    value={batch}
+                    onChange={(e) => setBatch(e.target.value)}
+                    placeholder="e.g. Batch 10 or 2022"
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Used for batch filtering and statistics.
+                  </p>
+                </div>
+              )}
 
               {/* Contact / Phone */}
               <div className="space-y-1.5">
@@ -504,8 +600,8 @@ export function ProfileEditor({ profile, accounts, stats }: ProfileEditorProps) 
         </section>
       )}
 
-      {/* 4. Tab 2: Coding Platform Handles */}
-      {activeTab === "platforms" && (
+      {/* 4. Tab 2: Coding Platform Handles (Members only) */}
+      {!isAdvisor && activeTab === "platforms" && (
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="mb-6 border-b border-border pb-4">
             <h2 className="text-lg font-semibold text-foreground">Connected Coding Platforms</h2>

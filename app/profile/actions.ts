@@ -14,11 +14,12 @@ export async function updateProfileInfo(
   prevState: ActionState | null,
   formData: FormData
 ): Promise<ActionState> {
-  const { user } = await requireApproved();
+  const { user, profile } = await requireApproved();
+  const isAdvisor = profile.role === "advisor";
 
   const raw = {
     full_name: formData.get("full_name"),
-    batch: formData.get("batch"),
+    batch: formData.get("batch") || formData.get("department"),
     contact: formData.get("contact"),
   };
 
@@ -29,14 +30,26 @@ export async function updateProfileInfo(
   }
 
   const admin = createAdminClient();
+  const updateData: Record<string, unknown> = {
+    full_name: parsed.data.full_name,
+    batch: parsed.data.batch,
+    contact: parsed.data.contact,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isAdvisor) {
+    const designation = (formData.get("designation") as string)?.trim();
+    const department = (formData.get("department") as string)?.trim();
+    if (designation) updateData.designation = designation;
+    if (department) {
+      updateData.department = department;
+      updateData.batch = department;
+    }
+  }
+
   const { error } = await admin
     .from("profiles")
-    .update({
-      full_name: parsed.data.full_name,
-      batch: parsed.data.batch,
-      contact: parsed.data.contact,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", user.id);
 
   if (error) {
@@ -66,7 +79,11 @@ export async function updatePlatformAccounts(
   prevState: ActionState | null,
   formData: FormData
 ): Promise<ActionState> {
-  const { user } = await requireApproved();
+  const { user, profile } = await requireApproved();
+
+  if (profile.role === "advisor") {
+    return { error: "Coding platform handles are not applicable for advisors." };
+  }
 
   const raw = {
     codeforces: formData.get("codeforces") || "",
